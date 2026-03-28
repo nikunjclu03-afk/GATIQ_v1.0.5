@@ -28,11 +28,7 @@
         <div class="startup-splash-core">
             <img src="img/gatiq-mark-dark.png" alt="GATIQ Logo" class="startup-splash-logo brand-logo-image" data-brand-logo="primary">
             <div class="startup-splash-copy">Loading...</div>
-            <div class="startup-loader" aria-label="Loading">
-                <span class="startup-loader-dot startup-loader-dot-a"></span>
-                <span class="startup-loader-dot startup-loader-dot-b"></span>
-                <span class="startup-loader-dot startup-loader-dot-c"></span>
-            </div>
+            <div class="startup-loader samsung-loader" aria-label="Loading"></div>
         </div>
     </div>
 
@@ -479,6 +475,7 @@
                             <div class="scan-overlay" id="scanOverlay">
                                 <div class="scan-line"></div>
                                 <div class="scan-corners"><span></span></div>
+                                <div class="scan-loader samsung-loader samsung-loader--light" aria-hidden="true"></div>
                             </div>
                         </div>
 
@@ -511,7 +508,7 @@
                         <div class="camera-actions" style="margin-top:0.5rem;">
                             <button class="btn btn-primary" id="btnScanPlate"
                                 style="border-radius: 50px; padding: 0.75rem 1rem;">
-                                <span class="spinner"></span>
+                                <span class="spinner samsung-loader samsung-loader--button" aria-hidden="true"></span>
                                 <span class="btn-label" style="display:flex;align-items:center;gap:0.4rem"><i
                                         data-lucide="scan-line" style="width:18px;height:18px;"></i> Scan & Add to
                                     Log</span>
