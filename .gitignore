@@ -2,6 +2,8 @@
 desktop.ini
 .DS_Store
 Thumbs.db
+.tmp.driveupload/
+.tmp.drivedownload/
 
 # Logs and temp outputs
 *.log
@@ -30,8 +32,6 @@ GATIQ API/QAT_Dataset_New/
 GATIQ API/data/
 GATIQ API/debug_scans/
 GATIQ API/*.zip
-GATIQ API/*.pt
-GATIQ API/*.onnx
 GATIQ API/*.jpg
 GATIQ API/*.jpeg
 GATIQ API/*.png
