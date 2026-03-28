@@ -1,0 +1,49 @@
+# OS / editor
+desktop.ini
+.DS_Store
+Thumbs.db
+
+# Logs and temp outputs
+*.log
+log.txt
+log2.txt
+uvicorn.out.log
+uvicorn.err.log
+
+# Secrets
+.env
+*.env
+
+# Python caches / environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+
+# Large ML artifacts / datasets
+GATIQ API/venv/
+GATIQ API/__pycache__/
+GATIQ API/QAT_Dataset/
+GATIQ API/QAT_Dataset_New/
+GATIQ API/data/
+GATIQ API/debug_scans/
+GATIQ API/*.zip
+GATIQ API/*.pt
+GATIQ API/*.onnx
+GATIQ API/*.jpg
+GATIQ API/*.jpeg
+GATIQ API/*.png
+
+# Local generated / scratch files
+base64_logo.txt
+logo.b64
+temp_logo.b64
+
+# Desktop build outputs
+node_modules/
+release/
+dist/
+build/pyinstaller/
+build/pyinstaller-spec/

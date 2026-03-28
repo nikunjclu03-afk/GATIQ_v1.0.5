@@ -1,0 +1,83 @@
+{
+  "name": "gatiq-desktop",
+  "version": "1.0.5",
+  "description": "GATIQ Vehicle Entry Audit Log desktop runtime",
+  "main": "desktop/main.js",
+  "author": "Abiliqt Technologies Pvt. Ltd.",
+  "license": "UNLICENSED",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nikunjclu03-afk/GATIQ.git"
+  },
+  "scripts": {
+    "dev": "set ELECTRON_RUN_AS_NODE=&& .\\node_modules\\electron\\dist\\electron.exe .",
+    "start": "set ELECTRON_RUN_AS_NODE=&& .\\node_modules\\electron\\dist\\electron.exe .",
+    "build:brand": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' '.\\desktop\\generate_brand_assets.py'\"",
+    "build:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/build-backend.ps1",
+    "dist": "npm run build:brand && npm run build:backend && electron-builder --win nsis",
+    "dist:dir": "npm run build:brand && npm run build:backend && electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.abiliqt.gatiq.desktop",
+    "productName": "GATIQ",
+    "artifactName": "GATIQ-Setup-${version}.${ext}",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "index.html",
+      "css/**/*",
+      "js/**/*",
+      "img/**/*",
+      "desktop/**/*",
+      "!desktop/build-backend.ps1"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/backend/GATIQBackend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GATIQ",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nikunjclu03-afk",
+        "repo": "GATIQ",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^36.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  }
+}

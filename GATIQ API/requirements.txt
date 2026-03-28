@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-multipart
+python-dotenv
+ultralytics
+onnxruntime
+easyocr
+opencv-python-headless
+numpy
+pillow

@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="GATIQ — Scan vehicle number plates via CCTV/camera and generate Vehicle Entry Audit Log PDFs automatically.">
+    <meta name="theme-color" content="#f5f7fa">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://unpkg.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' http://127.0.0.1:8001 https://accounts.google.com https://oauth2.googleapis.com; frame-src 'self' https://accounts.google.com; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+    <link rel="icon" type="image/png" href="img/gatiq-mark-dark.png">
+    <title>GATIQ — Vehicle Entry Audit Log | PDF Generator AI</title>
+    <link rel="stylesheet" href="css/theme.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js" defer></script>
+</head>
+
+<body class="startup-loading">
+
+    <!-- Background Effects -->
+    <div class="bg-effects">
+        <div class="orb"></div>
+        <div class="orb"></div>
+        <div class="orb"></div>
+    </div>
+
+    <div class="startup-splash" id="startupSplash">
+        <div class="startup-splash-core">
+            <img src="img/gatiq-mark-dark.png" alt="GATIQ Logo" class="startup-splash-logo brand-logo-image" data-brand-logo="primary">
+            <div class="startup-splash-copy">Loading...</div>
+            <div class="startup-loader" aria-label="Loading">
+                <span class="startup-loader-dot startup-loader-dot-a"></span>
+                <span class="startup-loader-dot startup-loader-dot-b"></span>
+                <span class="startup-loader-dot startup-loader-dot-c"></span>
+            </div>
+        </div>
+    </div>
+
+    <section class="auth-shell" id="authShell">
+        <div class="auth-layout">
+            <div class="auth-center-watermark" aria-hidden="true">
+                <img src="img/gatiq-mark-dark.png" alt="" class="brand-logo-image" data-brand-logo="primary">
+            </div>
+            <aside class="auth-showcase">
+                <div class="auth-showcase-content">
+                    <div class="auth-showcase-heading">
+                        <div class="auth-brand-lockup">
+                            <img src="img/gatiq-mark-dark.png" alt="GATIQ Shield Mark" class="auth-showcase-logo brand-logo-image" data-brand-logo="primary">
+                            <div>
+                                <div class="auth-showcase-brand">GATIQ</div>
+                                <div class="product-type">Vehicle Entry Audit System</div>
+                            </div>
+                        </div>
+                        <h1>Fast, Secure and Productive</h1>
+                        <p class="auth-showcase-subcopy">AI-assisted gate intelligence for trusted, auditable access control with unified entry management.</p>
+                    </div>
+                </div>
+                <div class="auth-showcase-footer">
+                    <span class="auth-language-pill">English</span>
+                    <div class="auth-mini-links">
+                        <a href="#">Terms</a>
+                        <a href="#">Plans</a>
+                        <a href="#">Contact Us</a>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="auth-panel">
+                <div class="auth-panel-head">
+                    <div class="auth-panel-title">
+                        <div class="auth-panel-eyebrow">Secure Entry</div>
+                        <h2>Login or create an account</h2>
+                    </div>
+                    <div class="auth-tab-row">
+                        <button class="auth-tab-btn active" id="btnAuthTabLogin" type="button">Login</button>
+                        <button class="auth-tab-btn" id="btnAuthTabSignup" type="button">Sign Up</button>
+                    </div>
+                </div>
+                <div class="auth-trust-row">
+                    <span class="auth-trust-chip">Encrypted Session</span>
+                    <span class="auth-trust-chip">Desktop Protected</span>
+                    <span class="auth-trust-chip">Audit Ready</span>
+                </div>
+
+                <form class="auth-form" id="loginForm">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-input" id="loginEmail" placeholder="operator@gatiq.in" autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <div class="auth-password-wrap">
+                            <input type="password" class="form-input auth-password-input" id="loginPassword" placeholder="Enter password" autocomplete="current-password">
+                            <button class="auth-password-toggle" id="loginPasswordToggle" title="Toggle password visibility" type="button">
+                                <svg id="loginEyeOpen" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                <svg id="loginEyeClosed" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                                    <path d="m15 18-.722-3.25" />
+                                    <path d="M2 8a10.645 10.645 0 0 0 20 0" />
+                                    <path d="m20 15-1.726-2.05" />
+                                    <path d="m4 15 1.726-2.05" />
+                                    <path d="m9 18 .722-3.25" />
+                                    <path d="m3 3 18 18" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button class="auth-google-btn" id="btnLoginGoogle" type="button">
+                        <span class="auth-google-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                                <path fill="#EA4335" d="M24 9.5c3.9 0 7.3 1.3 10 3.9l7.4-7.4C36.9 2.2 30.9 0 24 0 14.7 0 6.7 5.4 2.9 13.2l8.7 6.7C13.4 13.7 18.2 9.5 24 9.5z" />
+                                <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-2.7-.4-3.9H24v7.4h13c-.3 2-1.9 5.1-5.4 7.2l8.5 6.6c4.9-4.6 7.4-11.4 7.4-17.3z" />
+                                <path fill="#FBBC05" d="M11.6 28.1c-.4-1.2-.6-2.6-.6-4.1s.2-2.8.6-4.1L2.9 13.2C1 16.9 0 20.3 0 24s1 7.1 2.9 10.8l8.7-6.7z" />
+                                <path fill="#34A853" d="M24 48c6.9 0 12.7-2.3 16.9-6.2l-8.5-6.6c-2.3 1.6-5.2 2.8-8.4 2.8-5.8 0-10.6-4.2-12.4-10.4l-8.7 6.7C6.7 42.6 14.7 48 24 48z" />
+                            </svg>
+                        </span>
+                        <span>Continue with Google</span>
+                    </button>
+                    <div class="auth-google-rendered" id="googleLoginButtonHost" hidden></div>
+                    <div class="auth-divider" role="separator" aria-label="Or">
+                        <span>or</span>
+                    </div>
+                    <button class="btn btn-primary auth-submit-btn" id="btnLoginSubmit" type="submit">Login to Workspace</button>
+                    <p class="security-notice">All access attempts are logged and monitored. Unauthorized access is prohibited.</p>
+                </form>
+
+                <form class="auth-form auth-form-hidden" id="signupForm">
+                    <div class="auth-grid">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" class="form-input" id="signupName" placeholder="Security operator name">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" class="form-input" id="signupEmail" placeholder="operator@gatiq.in" autocomplete="username">
+                        </div>
+                    </div>
+                    <div class="auth-grid">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" class="form-input" id="signupPhone" placeholder="+91 98765 43210">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <div class="auth-password-wrap">
+                                <input type="password" class="form-input auth-password-input" id="signupPassword" placeholder="Create password" autocomplete="new-password">
+                                <button class="auth-password-toggle" id="signupPasswordToggle" title="Toggle password visibility" type="button">
+                                    <svg id="signupEyeOpen" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                    <svg id="signupEyeClosed" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                                        <path d="m15 18-.722-3.25" />
+                                        <path d="M2 8a10.645 10.645 0 0 0 20 0" />
+                                        <path d="m20 15-1.726-2.05" />
+                                        <path d="m4 15 1.726-2.05" />
+                                        <path d="m9 18 .722-3.25" />
+                                        <path d="m3 3 18 18" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="auth-grid">
+                        <div class="form-group" style="flex: 0 0 100%;">
+                            <label>Assigned Area</label>
+                            <div class="select-wrapper">
+                                <select class="form-select" id="signupAssignedArea"></select>
+                                <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="auth-form-meta">
+                        <span id="authSignupHint">Operators will be locked to the selected area after signup.</span>
+                    </div>
+                    <button class="auth-google-btn" id="btnSignupGoogle" type="button">
+                        <span class="auth-google-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                                <path fill="#EA4335" d="M24 9.5c3.9 0 7.3 1.3 10 3.9l7.4-7.4C36.9 2.2 30.9 0 24 0 14.7 0 6.7 5.4 2.9 13.2l8.7 6.7C13.4 13.7 18.2 9.5 24 9.5z" />
+                                <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-2.7-.4-3.9H24v7.4h13c-.3 2-1.9 5.1-5.4 7.2l8.5 6.6c4.9-4.6 7.4-11.4 7.4-17.3z" />
+                                <path fill="#FBBC05" d="M11.6 28.1c-.4-1.2-.6-2.6-.6-4.1s.2-2.8.6-4.1L2.9 13.2C1 16.9 0 20.3 0 24s1 7.1 2.9 10.8l8.7-6.7z" />
+                                <path fill="#34A853" d="M24 48c6.9 0 12.7-2.3 16.9-6.2l-8.5-6.6c-2.3 1.6-5.2 2.8-8.4 2.8-5.8 0-10.6-4.2-12.4-10.4l-8.7 6.7C6.7 42.6 14.7 48 24 48z" />
+                            </svg>
+                        </span>
+                        <span>Sign up with Google</span>
+                    </button>
+                    <div class="auth-google-rendered" id="googleSignupButtonHost" hidden></div>
+                    <div class="auth-divider" role="separator" aria-label="Or">
+                        <span>or</span>
+                    </div>
+                    <button class="btn btn-primary auth-submit-btn" id="btnSignupSubmit" type="submit">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <footer class="gatiq-footer">
+        <div>&copy; 2026 Abiliqt Technologies Pvt. Ltd.</div>
+        <div class="legal-links">
+            <a href="#">Privacy Policy</a> |
+            <a href="#">Terms</a> |
+            <a href="#">Security</a>
+        </div>
+    </footer>
+
+    <div class="system-version" id="systemVersion">GATIQ v1.0.0</div>
+
+    <div class="app auth-locked" id="appShell">
+        <!-- ======= HEADER ======= -->
+        <header class="header">
+            <div class="header-inner">
+                <!-- LEFT: Logo & Text -->
+                <a href="#" class="logo">
+                    <img src="img/gatiq-mark-dark.png" alt="GATIQ Logo" class="brand-logo-image" data-brand-logo="primary">
+                    <div class="logo-copy">
+                        <div class="logo-text"><span class="logo-brand-word">GATIQ</span> : Vehicle Entry Audit Log</div>
+                        <div class="logo-sub">Abiliqt Technologies Pvt. Ltd.</div>
+                    </div>
+                </a>
+
+                <!-- VERTICAL DIVIDER -->
+                <div class="header-divider" aria-hidden="true"></div>
+
+                <!-- RIGHT: Circle Buttons & Pill Buttons -->
+                <div class="header-controls">
+                    <!-- Circle Icon Buttons -->
+                    <div class="header-notification-wrap">
+                        <button class="header-circle-btn" id="btnNotifications" title="Notifications">
+                            <i data-lucide="bell" style="width:16px;height:16px;"></i>
+                            <span class="header-bell-badge" id="notificationCountBadge">0</span>
+                        </button>
+                        <div class="header-notification-panel" id="notificationPanel">
+                            <div class="header-notification-head">
+                                <span>Notifications</span>
+                                <button type="button" class="header-link-btn" id="btnClearNotifications">Clear</button>
+                            </div>
+                            <div class="header-notification-list" id="notificationList">
+                                <div class="header-notification-empty">No notifications yet.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="header-circle-btn" id="btnHelpShortcuts" title="Help / Shortcuts">
+                        <i data-lucide="circle-help" style="width:16px;height:16px;"></i>
+                    </button>
+                    <button class="header-circle-btn header-circle-btn--danger" id="btnEmergencyAlert" title="Emergency Alert">
+                        <i data-lucide="shield-alert" style="width:16px;height:16px;"></i>
+                    </button>
+
+                    <!-- Pill Rounded Buttons -->
+                    <button class="header-pill-btn" id="btnHeaderHome" title="Dashboard / Home">
+                        <i data-lucide="house" style="width:14px;height:14px;"></i>
+                        <span>Home</span>
+                    </button>
+                    <button class="header-pill-btn header-pill-btn--accent" id="btnQuickAccess" title="Quick Access PDF">
+                        <i data-lucide="files" style="width:14px;height:14px;"></i>
+                        <span>Quick Access</span>
+                    </button>
+
+                    <!-- Profile Pill -->
+                    <div class="header-profile-wrap">
+                        <button class="profile-trigger" id="btnProfileMenu" title="User Menu" type="button">
+                            <span class="profile-avatar" aria-label="Default profile symbol">
+                                <span class="profile-avatar-symbol" aria-hidden="true"></span>
+                            </span>
+                            <span class="profile-copy">
+                                <strong>Operator</strong>
+                                <small>Profile</small>
+                            </span>
+                            <i data-lucide="chevron-down" class="profile-chevron" style="width:14px;height:14px;"></i>
+                        </button>
+                        <div class="header-profile-menu" id="profileMenu">
+                            <button class="profile-menu-item" id="btnOpenProfile" type="button">
+                                <i data-lucide="user-round" style="width:14px;height:14px;"></i>
+                                <span>Profile</span>
+                            </button>
+                            <button class="profile-menu-item" id="btnSettings" type="button">
+                                <i data-lucide="settings" style="width:14px;height:14px;"></i>
+                                <span>Settings</span>
+                            </button>
+                            <div class="profile-menu-row">
+                                <div class="profile-menu-copy">
+                                    <strong>Theme</strong>
+                                    <small>Light or Dark</small>
+                                </div>
+                                <button class="theme-toggle" id="themeToggle" title="Toggle Light / Dark Mode" type="button">
+                                    <div class="theme-toggle-knob" id="themeKnob">Sun</div>
+                                </button>
+                            </div>
+                            <button class="profile-menu-item danger" id="btnLogout" type="button">
+                                <i data-lucide="log-out" style="width:14px;height:14px;"></i>
+                                <span>Logout</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Bottom accent line -->
+            <div class="header-bottom-line" aria-hidden="true"></div>
+        </header>
+
+        <section class="dashboard-view app-view-hidden" id="homeDashboard">
+            <div class="dashboard-hero">
+                <div>
+                    <div class="dashboard-eyebrow">Home Dashboard</div>
+                    <h2>Security operations overview</h2>
+                    <p>Track gate activity, sync health, recent vehicle flow, and jump back into scanning in one click.</p>
+                </div>
+                <div class="dashboard-hero-actions">
+                    <button class="btn btn-primary" id="btnOpenWorkspace">
+                        <span style="display:flex;align-items:center;gap:0.4rem;"><i data-lucide="scan-search" style="width:16px;height:16px;"></i> Open Scanner Workspace</span>
+                    </button>
+                    <button class="btn btn-secondary" id="btnDashboardQuickAccess">
+                        <span style="display:flex;align-items:center;gap:0.4rem;"><i data-lucide="files" style="width:16px;height:16px;"></i> Quick Access PDF</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <section class="panel dashboard-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i data-lucide="layout-dashboard" style="width:18px;height:18px;"></i> Overview</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="dashboard-stats-grid">
+                            <article class="dashboard-stat-card">
+                                <span>Total Entries</span>
+                                <strong id="dashboardTotalEntries">0</strong>
+                                <small>Current log volume</small>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span>Entries</span>
+                                <strong id="dashboardEntryCount">0</strong>
+                                <small>Inbound movements</small>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span>Exits</span>
+                                <strong id="dashboardExitCount">0</strong>
+                                <small>Outbound movements</small>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span>Saved PDFs</span>
+                                <strong id="dashboardPdfCount">0</strong>
+                                <small>Quick Access records</small>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel dashboard-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i data-lucide="zap" style="width:18px;height:18px;"></i> Quick Actions</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="dashboard-action-list">
+                            <button class="dashboard-action-btn" id="btnDashStartCamera"><i data-lucide="video" style="width:16px;height:16px;"></i><span>Start Camera</span></button>
+                            <button class="dashboard-action-btn" id="btnDashManualEntry"><i data-lucide="square-pen" style="width:16px;height:16px;"></i><span>Add Manual Entry</span></button>
+                            <button class="dashboard-action-btn" id="btnDashOpenSettings"><i data-lucide="settings-2" style="width:16px;height:16px;"></i><span>Open Settings</span></button>
+                            <button class="dashboard-action-btn" id="btnDashOpenNotifications"><i data-lucide="bell-ring" style="width:16px;height:16px;"></i><span>View Notifications</span></button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="dashboard-grid dashboard-grid-secondary">
+                <section class="panel dashboard-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i data-lucide="activity" style="width:18px;height:18px;"></i> System Snapshot</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="dashboard-trend-card">
+                            <div class="dashboard-trend-head">
+                                <div>
+                                    <span class="dashboard-trend-label">Security Trend</span>
+                                    <strong id="dashboardTrendTitle">Gate activity rising</strong>
+                                </div>
+                                <span class="dashboard-trend-chip" id="dashboardTrendChip">Live</span>
+                            </div>
+                            <div class="dashboard-trend-chart">
+                                <svg viewBox="0 0 320 150" preserveAspectRatio="none" class="dashboard-trend-svg" aria-hidden="true">
+                                    <defs>
+                                        <linearGradient id="dashboardTrendStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stop-color="#ef4444"></stop>
+                                            <stop offset="38%" stop-color="#f59e0b"></stop>
+                                            <stop offset="70%" stop-color="#22c55e"></stop>
+                                            <stop offset="100%" stop-color="#39ff14"></stop>
+                                        </linearGradient>
+                                        <linearGradient id="dashboardTrendFill" x1="0%" y1="0%" x2="0%" y2="100%">
+                                            <stop offset="0%" stop-color="rgba(34,197,94,0.45)"></stop>
+                                            <stop offset="100%" stop-color="rgba(34,197,94,0)"></stop>
+                                        </linearGradient>
+                                    </defs>
+                                    <g class="dashboard-trend-grid">
+                                        <line x1="0" y1="25" x2="320" y2="25"></line>
+                                        <line x1="0" y1="75" x2="320" y2="75"></line>
+                                        <line x1="0" y1="125" x2="320" y2="125"></line>
+                                    </g>
+                                    <path id="dashboardTrendArea" class="dashboard-trend-area" d=""></path>
+                                    <path id="dashboardTrendLine" class="dashboard-trend-line" d=""></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="dashboard-system-grid">
+                            <div class="dashboard-system-item">
+                                <span>Camera</span>
+                                <strong id="dashboardCameraState">Offline</strong>
+                            </div>
+                            <div class="dashboard-system-item">
+                                <span>Scanner</span>
+                                <strong id="dashboardScannerState">Idle</strong>
+                            </div>
+                            <div class="dashboard-system-item">
+                                <span>Cloud Sync</span>
+                                <strong id="dashboardCloudState">Off</strong>
+                            </div>
+                            <div class="dashboard-system-item">
+                                <span>Last Sync</span>
+                                <strong id="dashboardLastSync">Not synced yet</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel dashboard-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i data-lucide="history" style="width:18px;height:18px;"></i> Recent Activity</div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="dashboard-activity-list" id="dashboardRecentActivity">
+                            <div class="dashboard-empty">No recent activity yet.</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <!-- ======= MAIN LAYOUT ======= -->
+        <main class="main-layout" id="workspaceView">
+
+            <!-- LEFT: Camera Panel -->
+            <section class="panel camera-panel">
+                <div class="panel-header">
+                    <div class="panel-title" style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="camera"
+                            style="width:18px;height:18px;"></i> Number Plate Scanner <span id="engineInfoPill"></span></div>
+                    <div class="header-status-cluster panel-status-cluster" aria-label="Live Status">
+                        <span class="header-status-pill" id="cameraStatusPill">Camera: Off</span>
+                        <span class="header-status-pill" id="scannerStatusPill">Scanner: Idle</span>
+                        <span class="header-status-pill" id="cloudStatusPill">Cloud: Off</span>
+                        <div class="header-sync-card panel-sync-card" id="headerSyncCard" title="Sync status">
+                            <div class="header-sync-title">
+                                <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i>
+                                <span>Sync Status</span>
+                            </div>
+                            <div class="header-sync-sub" id="syncStatusText">Not synced yet</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-body camera-horizontal">
+                    <!-- Left Column: Camera Feed -->
+                    <div class="camera-col-left">
+                        <!-- Camera Area -->
+                        <div class="camera-area" id="cameraArea">
+                            <video class="camera-feed" id="cameraFeed" autoplay playsinline muted></video>
+                            <canvas id="captureCanvas" style="display:none;"></canvas>
+                            <img id="uploadedImage" class="camera-feed" style="display:none;"
+                                alt="Uploaded vehicle image">
+
+                            <div class="camera-placeholder" id="cameraPlaceholder">
+                                <div class="cam-icon"><i data-lucide="camera" style="width:3rem;height:3rem;"></i></div>
+                                <p>Start camera or upload an image<br>to scan vehicle number plate</p>
+                            </div>
+
+                            <!-- Scan Overlay -->
+                            <div class="scan-overlay" id="scanOverlay">
+                                <div class="scan-line"></div>
+                                <div class="scan-corners"><span></span></div>
+                            </div>
+                        </div>
+
+                        <!-- Detected Plate Result -->
+                        <div class="plate-result" id="plateResult">
+                            <div class="plate-label">Detected Number Plate</div>
+                            <div class="plate-number" id="plateNumber">—</div>
+                            <div style="display:flex; gap:0.75rem; justify-content:center; margin-top:0.5rem;">
+                                <span class="stat-badge" id="detectedDirection">Direction: —</span>
+                                <span class="stat-badge" id="detectedType">Type: —</span>
+                                <span class="stat-badge" id="detectedTagging">Tagging: —</span>
+                                <span id="scanTimeBadge" class="scan-time-badge" style="display:none"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="camera-col-right">
+                        <!-- Camera Action Buttons -->
+                        <div class="camera-actions" style="margin-top:0;">
+                            <button class="btn btn-secondary" id="btnStartCamera" style="border-radius: 50px;">
+                                <span class="btn-label" style="display:flex;align-items:center;gap:0.4rem"><i
+                                        data-lucide="video" style="width:16px;height:16px;"></i> Start</span>
+                            </button>
+                            <label class="upload-label"
+                                style="display:flex;align-items:center;gap:0.4rem; justify-content:center; border-radius: 50px;">
+                                <i data-lucide="upload" style="width:16px;height:16px;"></i> Upload
+                                <input type="file" id="imageUpload" accept="image/*">
+                            </label>
+                        </div>
+                        <div class="camera-actions" style="margin-top:0.5rem;">
+                            <button class="btn btn-primary" id="btnScanPlate"
+                                style="border-radius: 50px; padding: 0.75rem 1rem;">
+                                <span class="spinner"></span>
+                                <span class="btn-label" style="display:flex;align-items:center;gap:0.4rem"><i
+                                        data-lucide="scan-line" style="width:18px;height:18px;"></i> Scan & Add to
+                                    Log</span>
+                                <span class="btn-loading">Scanning...</span>
+                            </button>
+                        </div>
+
+                        <div class="camera-right-scroll">
+                            <div class="camera-right-split" id="cameraRightSplit">
+                                <div class="camera-right-split-col">
+                                    <!-- Purpose & Dynamic Selection (shown after scan or always visible) -->
+                                    <div class="manual-section" id="purposeSection">
+                                        <div class="section-label" style="margin-bottom:0.2rem;">Visit Details</div>
+                                        <div class="form-row" id="coreDynamicFields">
+                                            <div class="form-group" style="flex:1;">
+                                                <label>Purpose</label>
+                                                <div class="select-wrapper">
+                                                    <select class="form-select" id="purposeSelect"
+                                                        style="width:100%;padding:0.55rem 0.7rem;">
+                                                        <option value="Delivery Guy">Delivery Guy</option>
+                                                    </select>
+                                                    <i data-lucide="chevron-down" class="select-icon"
+                                                        style="width:16px;height:16px;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Factory Dynamic Extra Fields -->
+                                        <div class="form-row" id="visitExtraFields"
+                                            style="display: none; margin-top: 0.5rem;">
+                                            <div class="form-group" style="flex:1;">
+                                                <label>Vehicle Category</label>
+                                                <div class="select-wrapper">
+                                                    <select class="form-select" id="visitVehicleType">
+                                                        <option value="Car">Car</option>
+                                                        <option value="Bike">Bike</option>
+                                                        <option value="Bus">Bus</option>
+                                                        <option value="Auto Riksha">Auto Riksha</option>
+                                                        <option value="Scooty">Scooty</option>
+                                                        <option value="Taxi / Cab">Taxi / Cab</option>
+                                                        <option value="Van">Van</option>
+                                                        <option value="Pickup">Pickup</option>
+                                                        <option value="Tempo">Tempo</option>
+                                                        <option value="Truck">Truck</option>
+                                                        <option value="Mini Truck">Mini Truck</option>
+                                                        <option value="Container">Container</option>
+                                                        <option value="Emergency Vehicle">Emergency Vehicle</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                    <i data-lucide="chevron-down" class="select-icon"
+                                                        style="width:16px;height:16px;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="form-row" id="visitDriverFields"
+                                            style="display: none; margin-top: 0.5rem;">
+                                            <div class="form-group" style="flex:1.5;">
+                                                <label>Driver Name</label>
+                                                <input type="text" class="form-input" id="visitDriverName"
+                                                    placeholder="Enter Name">
+                                            </div>
+                                            <div class="form-group" style="flex:1;">
+                                                <label>Mobile Number
+                                                    <span
+                                                        style="font-size:0.6rem; color: #888; font-weight:normal; float:right; cursor:pointer;"
+                                                        onclick="document.getElementById('visitDriverPhone').value='SKIPPED'">[Skip]</span>
+                                                </label>
+                                                <input type="tel" class="form-input" id="visitDriverPhone"
+                                                    placeholder="10-digit no.">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Logistics Dynamic Extra Fields -->
+                                    <div class="form-row" id="logisticsExtraFields"
+                                        style="display: none; margin-top: 0.5rem;">
+                                        <div class="form-group" style="flex:1;">
+                                            <label>Vehicle Capacity</label>
+                                            <div class="select-wrapper">
+                                                <select class="form-select" id="logisticsCapacity">
+                                                    <option value="Mini Truck (1-2 Ton)">Mini Truck (1-2 Ton)</option>
+                                                    <option value="LCV (3-5 Ton)">LCV (3-5 Ton)</option>
+                                                    <option value="HCV (10+ Ton)">HCV (10+ Ton)</option>
+                                                    <option value="Container (20ft/40ft)">Container (20ft/40ft)
+                                                    </option>
+                                                </select>
+                                                <i data-lucide="chevron-down" class="select-icon"
+                                                    style="width:16px;height:16px;"></i>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="flex:1;">
+                                            <label>Dock No.</label>
+                                            <input type="text" class="form-input" id="logisticsDockNo"
+                                                placeholder="D-01">
+                                        </div>
+                                    </div>
+                                    <div class="form-row" id="logisticsConsignmentFields"
+                                        style="display: none; margin-top: 0.5rem;">
+                                        <div class="form-group" style="flex:1;">
+                                            <label>Consignment / LR No.</label>
+                                            <input type="text" class="form-input" id="logisticsConsignment"
+                                                placeholder="Enter LR/AWB No.">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="camera-right-split-col">
+                                    <!-- Manual Entry Form -->
+                                    <div class="manual-section" id="manualEntrySection" style="margin-top:0;">
+                                        <div class="section-label" style="display:flex;align-items:center;gap:0.4rem"><i
+                                                data-lucide="pen-tool" style="width:14px;height:14px;"></i> Manual Data
+                                            Entry (No
+                                            API)</div>
+
+                                        <div class="form-row">
+                                            <div class="form-group" style="flex:2;">
+                                                <label>Vehicle No.</label>
+                                                <input type="text" class="form-input" id="manualVehicle"
+                                                    placeholder="MH 12 AB 1234">
+                                            </div>
+                                            <div class="form-group" style="flex:1;">
+                                                <label id="manualDirLabel">Direction</label>
+                                                <div class="select-wrapper">
+                                                    <select class="form-select" id="manualDirection">
+                                                        <option value="Entry">Entry</option>
+                                                        <option value="Exit">Exit</option>
+                                                    </select>
+                                                    <i data-lucide="chevron-down" class="select-icon"
+                                                        style="width:16px;height:16px;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row" style="margin-top:0.5rem; align-items:flex-end;">
+                                            <div class="form-group" style="flex:1;">
+                                                <label>Tagging</label>
+                                                <div class="select-wrapper">
+                                                    <select class="form-select" id="manualTagging">
+                                                        <option value="Non-Resident">Non-Resident</option>
+                                                        <option value="Resident">Resident</option>
+                                                    </select>
+                                                    <i data-lucide="chevron-down" class="select-icon"
+                                                        style="width:16px;height:16px;"></i>
+                                                </div>
+                                            </div>
+                                            <div style="flex: 0 0 auto;">
+                                                <button class="btn btn-secondary" id="btnAddManual"
+                                                    style="padding:0.44rem 1.4rem; border-radius: 50px; border-color:var(--border-accent); background: var(--bg-glass-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                                    <span
+                                                        style="display:flex;align-items:center;gap:0.4rem;justify-content:center"><i
+                                                            data-lucide="plus" style="width:16px;height:16px;"></i>
+                                                        Add</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT: Log Table -->
+            <section class="panel log-panel">
+                <div class="panel-header">
+                    <div class="panel-title" style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="list"
+                            style="width:18px;height:18px;"></i> Vehicle Entry Log</div>
+                    <div class="log-stats">
+                        <span class="stat-badge">Total: <span class="num" id="totalEntries">0</span></span>
+                        <span class="stat-badge">Entries: <span class="num" id="entryCount">0</span></span>
+                        <span class="stat-badge">Exits: <span class="num" id="exitCount">0</span></span>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="log-table-wrap">
+                        <table class="log-table" id="logTable">
+                            <thead id="logTableHead">
+                                <tr>
+                                    <th>Sr. No.</th>
+                                    <th>Gate No.</th>
+                                    <th>Vehicle No.</th>
+                                    <th>Date</th>
+                                    <th>Entry / Exit</th>
+                                    <th>Time</th>
+                                    <th>Purpose of Visit</th>
+                                    <th>Tagging</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logTableBody"></tbody>
+                        </table>
+
+                        <!-- Empty State -->
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-icon"><i data-lucide="clipboard-list" style="width:3rem;height:3rem;"></i>
+                            </div>
+                            <h3>No entries yet</h3>
+                            <p>Scan a vehicle plate to automatically add entries to the log.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Quick Access Drawer -->
+    <div class="quick-drawer-backdrop" id="quickDrawerBackdrop"></div>
+    <aside class="quick-drawer" id="quickDrawer">
+        <div class="quick-drawer-topbar">
+            <button class="quick-back-btn" id="btnQuickBack" title="Back">
+                <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
+            </button>
+            <div class="quick-access-title"><i data-lucide="files" style="width:15px;height:15px;"></i><span
+                    class="quick-access-title-text">Quick Access PDF</span></div>
+            <button class="btn-export pdf quick-selected-export" id="btnQuickExportSelected">
+                <span id="quickExportText">Export PDF</span>
+            </button>
+        </div>
+
+        <div class="quick-search-row">
+            <i data-lucide="search" class="quick-search-icon" style="width:14px;height:14px;"></i>
+            <input type="text" id="quickAccessSearch" class="quick-search-input"
+                placeholder="Search bar">
+        </div>
+
+        <div class="quick-cloud-sync-row">
+            <div class="quick-cloud-sync-label">
+                <i data-lucide="cloud" style="width:14px;height:14px;"></i>
+                <span>Cloud Sync</span>
+                <span class="quick-cloud-sync-state" id="quickCloudSyncState">OFF</span>
+            </div>
+            <button class="quick-cloud-toggle" id="quickCloudSyncToggle" type="button" aria-pressed="false"
+                title="Toggle Cloud Sync">
+                <span class="quick-cloud-toggle-knob"></span>
+            </button>
+        </div>
+
+        <div class="quick-month-groups" id="quickAccessResults"></div>
+
+    </aside>
+
+    <div class="modal-overlay" id="quickViewerModal">
+        <div class="modal quick-viewer-modal">
+            <div class="quick-viewer-topbar">
+                <div class="quick-viewer-heading">
+                    <div class="quick-viewer-eyebrow">Quick Access Viewer</div>
+                    <h3 id="quickViewerTitle">Vehicle Entry Audit Report</h3>
+                    <p id="quickViewerSubtitle">Search and review report details without leaving the app.</p>
+                </div>
+                <button class="quick-viewer-close" id="btnCloseQuickViewer" type="button" aria-label="Close viewer">
+                    <i data-lucide="x" style="width:18px;height:18px;"></i>
+                </button>
+            </div>
+
+            <div class="quick-viewer-toolbar">
+                <div class="quick-viewer-search">
+                    <i data-lucide="search" style="width:15px;height:15px;"></i>
+                    <input type="text" id="quickViewerSearch" placeholder="Search inside this report">
+                </div>
+                <div class="quick-viewer-toolbar-actions">
+                    <span class="quick-viewer-match-status" id="quickViewerMatchStatus">No search</span>
+                    <button class="quick-viewer-toolbtn" id="btnQuickViewerPrev" type="button">Prev</button>
+                    <button class="quick-viewer-toolbtn" id="btnQuickViewerNext" type="button">Next</button>
+                    <button class="quick-viewer-toolbtn" id="btnQuickViewerZoomOut" type="button">-</button>
+                    <span class="quick-viewer-zoom-label" id="quickViewerZoomLabel">100%</span>
+                    <button class="quick-viewer-toolbtn" id="btnQuickViewerZoomIn" type="button">+</button>
+                    <button class="quick-viewer-toolbtn" id="btnQuickViewerZoomReset" type="button">Reset</button>
+                    <button class="quick-viewer-actionbtn" id="btnQuickViewerDownload" type="button">Download</button>
+                    <button class="quick-viewer-actionbtn" id="btnQuickViewerOpenTab" type="button">Open / Print</button>
+                    <button class="quick-viewer-actionbtn accent" id="btnQuickViewerShare" type="button">Share</button>
+                </div>
+            </div>
+
+            <div class="quick-viewer-search-empty" id="quickViewerSearchEmpty" hidden>No matches found.</div>
+
+            <div class="quick-viewer-canvas" id="quickViewerCanvas">
+                <div class="quick-viewer-paper-shell" id="quickViewerPaperShell">
+                    <div class="quick-viewer-paper" id="quickViewerContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal header-utility-modal">
+            <h3 style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="circle-help"
+                    style="width:20px;height:20px;"></i> Help & Shortcuts</h3>
+            <div class="shortcut-list">
+                <div class="shortcut-row"><span>Start Camera</span><kbd>Alt</kbd><kbd>C</kbd></div>
+                <div class="shortcut-row"><span>Scan & Add to Log</span><kbd>Alt</kbd><kbd>S</kbd></div>
+                <div class="shortcut-row"><span>Quick Access PDF</span><kbd>Alt</kbd><kbd>Q</kbd></div>
+                <div class="shortcut-row"><span>Settings</span><kbd>Alt</kbd><kbd>,</kbd></div>
+                <div class="shortcut-row"><span>Dashboard / Home</span><kbd>Alt</kbd><kbd>H</kbd></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="btnCloseHelp">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="emergencyConfirmModal">
+        <div class="modal header-utility-modal">
+            <h3 style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="shield-alert"
+                    style="width:20px;height:20px;"></i> Confirm Emergency Alert</h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin-top: 0.75rem;">
+                Are you sure you want to trigger the emergency alert for the security team?
+            </p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btnCancelEmergencyAlert" type="button">Cancel</button>
+                <button class="btn btn-danger" id="btnConfirmEmergencyAlert" type="button">Confirm Alert</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="logoutConfirmModal">
+        <div class="modal header-utility-modal">
+            <h3 style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="log-out"
+                    style="width:20px;height:20px;"></i> Confirm Logout</h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; margin-top: 0.75rem;">
+                Are you sure you want to log out from GATIQ? This will close the current session and return you to the login page.
+            </p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btnCancelLogout" type="button">Cancel</button>
+                <button class="btn btn-danger" id="btnConfirmLogout" type="button">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h3 style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="edit-3"
+                    style="width:20px;height:20px;"></i> Edit Entry</h3>
+            <div class="form-group">
+                <label>Vehicle No.</label>
+                <input type="text" class="form-input" id="editVehicle">
+            </div>
+            <div class="form-group" id="editVehicleTypeGroup" style="display:none;">
+                <label>Vehicle Category</label>
+                <select class="form-select" id="editVehicleType">
+                    <option value="Car">Car</option>
+                    <option value="Bike">Bike</option>
+                    <option value="Bus">Bus</option>
+                    <option value="Auto Riksha">Auto Riksha</option>
+                    <option value="Scooty">Scooty</option>
+                    <option value="Taxi / Cab">Taxi / Cab</option>
+                    <option value="Van">Van</option>
+                    <option value="Pickup">Pickup</option>
+                    <option value="Tempo">Tempo</option>
+                    <option value="Truck">Truck</option>
+                    <option value="Mini Truck">Mini Truck</option>
+                    <option value="Container">Container</option>
+                    <option value="Emergency Vehicle">Emergency Vehicle</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group" id="editDriverFieldsGroup" style="display:none;">
+                <label>Driver Name</label>
+                <input type="text" class="form-input" id="editDriverName" style="margin-bottom:0.5rem;"
+                    placeholder="Name">
+                <label>Driver Phone</label>
+                <input type="tel" class="form-input" id="editDriverPhone" placeholder="10-digit no.">
+            </div>
+            <div class="form-group" id="editLogisticsFieldsGroup" style="display:none;">
+                <label>Vehicle Capacity</label>
+                <select class="form-select" id="editLogisticsCapacity" style="margin-bottom:0.5rem;">
+                    <option value="Mini Truck (1-2 Ton)">Mini Truck (1-2 Ton)</option>
+                    <option value="LCV (3-5 Ton)">LCV (3-5 Ton)</option>
+                    <option value="HCV (10+ Ton)">HCV (10+ Ton)</option>
+                    <option value="Container (20ft/40ft)">Container (20ft/40ft)</option>
+                </select>
+                <label>Dock No.</label>
+                <input type="text" class="form-input" id="editLogisticsDockNo" style="margin-bottom:0.5rem;"
+                    placeholder="D-01">
+                <label>Consignment / LR No.</label>
+                <input type="text" class="form-input" id="editLogisticsConsignment" placeholder="LR/AWB NO">
+            </div>
+            <div class="form-group">
+                <label id="editEntryExitLabel">Entry / Exit</label>
+                <select class="form-select" id="editEntryExit">
+                    <option value="Entry">Entry</option>
+                    <option value="Exit">Exit</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Purpose of Visit</label>
+                <select class="form-select" id="editPurpose">
+                    <option value="Delivery Guy">Delivery Guy</option>
+                    <option value="Guest">Guest</option>
+                    <option value="Cab">Cab</option>
+                    <option value="Service">Service</option>
+                    <option value="Maintenance">Maintenance</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tagging</label>
+                <select class="form-select" id="editTagging">
+                    <option value="Resident">Resident</option>
+                    <option value="Non-Resident">Non-Resident</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="btnCancelEdit">Cancel</button>
+                <button class="btn btn-primary" id="btnSaveEdit">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal profile-modal">
+            <h3 style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="user-round"
+                    style="width:20px;height:20px;"></i> Operator Profile</h3>
+            <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 1rem; margin-top: -0.5rem;">
+                Update operator identity, contact details, and subscription status.</p>
+
+            <div class="profile-summary-card">
+                <div class="profile-summary-avatar" id="profileSummaryAvatar" aria-label="Default profile symbol">
+                    <span class="profile-summary-avatar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z"></path>
+                            <path d="M5 20a7 7 0 0 1 14 0"></path>
+                        </svg>
+                    </span>
+                </div>
+                <div class="profile-summary-copy">
+                    <strong id="profileSummaryName">GATIQ Operator</strong>
+                    <span id="profileSummaryRole">Operator | Residential Society</span>
+                </div>
+                <span class="profile-plan-badge" id="profilePlanBadge">Starter</span>
+            </div>
+
+            <div class="profile-modal-grid">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" class="form-input" id="profileName" placeholder="Operator name">
+                </div>
+                <div class="form-group">
+                    <label>Access Role</label>
+                    <div class="select-wrapper">
+                        <select class="form-select" id="profileAccessRole">
+                            <option value="operator">Operator</option>
+                            <option value="super_admin">Super Admin</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" class="form-input" id="profileEmail" placeholder="operator@gatiq.in">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" class="form-input" id="profilePhone" placeholder="+91 98765 43210">
+                </div>
+            </div>
+            <div class="profile-access-card">
+                <div class="form-group">
+                    <label>Assigned Area</label>
+                    <div class="select-wrapper">
+                        <select class="form-select" id="profileAssignedArea"></select>
+                        <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                    </div>
+                </div>
+                <div class="profile-access-note" id="profileAccessNote">
+                    Operators are locked to one deployment area. Super admins can switch across all areas.
+                </div>
+            </div>
+
+            <div class="subscription-card">
+                <div class="subscription-copy">
+                    <span class="subscription-label">Subscription</span>
+                    <strong id="subscriptionPlanName">Starter Plan</strong>
+                    <small id="subscriptionRenewalInfo">Renews on 30 Apr 2026</small>
+                </div>
+                <button class="btn btn-primary subscription-upgrade-btn" id="btnUpgradePlan" type="button">
+                    <i data-lucide="sparkles" style="width:16px;height:16px;"></i> Upgrade
+                </button>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1rem; justify-content: space-between;">
+                <button class="btn btn-secondary" id="btnCloseProfile"
+                    style="width: 130px !important; flex: 0 0 auto !important; border-radius: 50px;">Close</button>
+                <button class="btn btn-primary" id="btnSaveProfile"
+                    style="width: 150px !important; flex: 0 0 auto !important; border-radius: 50px;">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal settings-modal">
+            <h3 style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="settings"
+                    style="width:20px;height:20px;"></i> Settings</h3>
+            <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 1rem; margin-top: -0.5rem;">
+                Configure your application preferences and AI integration.</p>
+
+            <div class="settings-grid">
+            <div class="form-group settings-grid-full">
+                <div class="area-setting-header">
+                    <label>Deployment Area</label>
+                    <span class="area-setting-badge locked" id="deploymentAreaBadge">Locked</span>
+                </div>
+                <div class="area-locked-pill" id="areaLockedPill">
+                    <span id="areaLockedText">Area: Residential Society</span>
+                    <span class="area-locked-pill-badge">Locked</span>
+                </div>
+                <div class="select-wrapper">
+                    <select class="form-select" id="deploymentArea">
+                        <option value="Residential Society">Residential Society</option>
+                        <option value="Factories & Manufacturing Plants">Factories & Manufacturing Plants</option>
+                        <option value="Warehouses & Logistics Hubs">Warehouses & Logistics Hubs</option>
+                        <option value="Commercial Tech Parks & Business Centers">Commercial Tech Parks & Business Centers</option>
+                        <option value="Educational Institutions">Educational Institutions</option>
+                        <option value="Hotels & Resorts">Hotels & Resorts</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                </div>
+                <small id="deploymentAreaHint" style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* Changes the data entry fields and report columns.</small>
+            </div>
+
+            <div class="settings-divider settings-grid-full"></div>
+
+            <div class="form-group">
+                <label id="facilityLabel">Facility / Society Name</label>
+                <input type="text" class="form-input" id="societyName" placeholder="e.g. Sky Heights"
+                    value="Sky Heights">
+            </div>
+
+            <div class="form-group">
+                <label>Gate / Checkpoint ID</label>
+                <div class="select-wrapper">
+                    <select class="form-select" id="gateId">
+                        <option value="Gate 1">Gate 1</option>
+                        <option value="Gate 2">Gate 2</option>
+                        <option value="Gate 3">Gate 3</option>
+                        <option value="Gate 4">Gate 4</option>
+                        <option value="Main Entrance">Main Entrance</option>
+                        <option value="Service Gate">Service Gate</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+
+            <div class="settings-divider settings-grid-full"></div>
+
+            <div class="form-group">
+                <label>Camera Source</label>
+                <div class="select-wrapper">
+                    <select class="form-select" id="cameraSource">
+                        <option value="webcam">Webcam (Default)</option>
+                        <option value="cctv">IP Camera / CCTV (RTSP)</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                </div>
+            </div>
+
+            <div class="form-group" id="cctvUrlGroup" style="display: none;">
+                <label>CCTV RTSP URL</label>
+                <input type="text" class="form-input" id="cctvUrl" placeholder="rtsp://admin:pass@192.168.1.100:554/stream"
+                    autocomplete="off" spellcheck="false">
+                <small style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* GATIQ backend will pull frames directly from this local stream URL.</small>
+            </div>
+
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>GATIQ Backend API Base URL</label>
+                <input type="text" class="form-input" id="backendApiUrl"
+                    placeholder="http://127.0.0.1:8001"
+                    autocomplete="off" spellcheck="false">
+                <small style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* Desktop mode manages this local backend automatically. Browser mode can still use a custom local GATIQ API.</small>
+            </div>
+
+            <div class="form-group" style="margin-top: 0.75rem;">
+                <label>GATIQ Backend API Key</label>
+                <div class="api-key-group" style="width: 100%;">
+                    <input type="password" class="api-key-field" id="backendApiKeyInput"
+                        style="width: 100%; border-radius: var(--radius-sm);" placeholder="Paste your backend API key here..."
+                        autocomplete="off" spellcheck="false">
+                    <button class="api-key-toggle" id="backendApiKeyToggle" title="Toggle visibility"
+                        style="display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;">
+                        <svg id="backendEyeIconOpen" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg id="backendEyeIconCrossed" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                            <path
+                                d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                            </path>
+                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                    </button>
+                </div>
+                <small style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* In desktop mode this key is stored in the local app runtime. In browser mode it must match your backend `GATIQ_API_KEY`.</small>
+            </div>
+
+            <div class="form-group settings-grid-full" style="margin-top: 0.75rem;">
+                <label>Google OAuth Client ID</label>
+                <input type="text" class="form-input" id="googleClientIdInput"
+                    placeholder="Paste your Google Web Client ID here..."
+                    autocomplete="off" spellcheck="false">
+                <small style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* Required for real Google account chooser. Use a Google Web OAuth client and authorize your localhost origin. File preview mode will not work for Google auth.</small>
+            </div>
+
+            <div class="form-group settings-grid-full" style="margin-top: 0.75rem;">
+                <button class="btn btn-secondary" id="btnRestartBackendConnection"
+                    style="width: 100%; display: flex; justify-content: center; gap: 0.5rem; border-radius: 50px; margin-bottom: 0.55rem;"
+                    type="button">
+                    <span style="display:flex;align-items:center;"><i data-lucide="rotate-ccw"
+                            style="width:16px;height:16px;"></i></span> Restart Local Backend
+                </button>
+                <button class="btn btn-secondary" id="btnTestBackendConnection"
+                    style="width: 100%; display: flex; justify-content: center; gap: 0.5rem; border-radius: 50px;"
+                    type="button">
+                    <span style="display:flex;align-items:center;"><i data-lucide="plug-zap"
+                            style="width:16px;height:16px;"></i></span> Test Backend Connection
+                </button>
+                <small id="backendConnectionStatus" style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 6px; display:block;">* Desktop mode auto-starts the local AI backend. Browser mode requires a reachable local GATIQ API before scanning.</small>
+            </div>
+
+            <div class="settings-divider settings-grid-full"></div>
+
+            <div class="form-group settings-grid-full">
+                <label>Cloud Storage Integration</label>
+                <p style="font-size: 0.70rem; color: var(--text-tertiary); margin-bottom: 0.5rem;">
+                    Back up your PDF reports and vehicle data to Google Cloud for extra safety.</p>
+
+                <div class="cloud-config-card" 
+                    style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.65rem;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 0.5rem;">
+                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                            <i data-lucide="cloud" style="width:14px;height:14px;"></i> Google Cloud Backup
+                        </span>
+                        <span id="cloudConnectionStatus" class="stat-badge" style="font-size: 0.65rem;">Disconnected</span>
+                    </div>
+                    
+                    <button class="btn btn-secondary" id="btnConnectGoogleCloud"
+                        style="width: 100%; display: flex; justify-content: center; gap: 0.5rem; border-radius: 50px; margin-bottom: 0.44rem;"
+                        type="button">
+                        <span style="display:flex;align-items:center;"><i data-lucide="link"
+                                style="width:16px;height:16px;"></i></span> Connect Google Account
+                    </button>
+
+                    <div id="cloudPolicyNote" style="font-size: 0.65rem; color: var(--text-tertiary);">
+                        <i data-lucide="shield-check" style="width:12px;height:12px;vertical-align:middle;margin-right:2px"></i> 
+                        <strong>Privacy Policy:</strong> Data is synchronized for 12 months. Any records older than 1 year (365 days) will be automatically purged from the cloud backup.
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-divider settings-grid-full"></div>
+
+            <div class="form-group settings-grid-full"
+                style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <label>Resident Whitelist</label>
+                <p style="font-size: 0.70rem; color: var(--text-tertiary); margin-bottom: 0.5rem;">
+                    Add residents to automatically tag their vehicles.</p>
+                <button class="btn btn-secondary" id="btnManageResidents"
+                    style="width: 100%; display: flex; justify-content: center; gap: 0.5rem; border-radius: 50px;">
+                    <span style="display:flex;align-items:center;"><i data-lucide="users"
+                            style="width:16px;height:16px;"></i></span> Manage Resident Whitelist
+                </button>
+            </div>
+            <div class="form-group settings-grid-full update-settings-card"
+                style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <label>Desktop App Updates</label>
+                <p style="font-size: 0.70rem; color: var(--text-tertiary); margin-bottom: 0.6rem;">
+                    Installed builds can check GitHub Releases, download new versions in-app, and install them after restart.</p>
+                <div class="update-settings-status" id="appUpdateStatus">Auto-update status unavailable.</div>
+                <small class="update-settings-meta" id="appUpdateMeta">Current version: v1.0.0</small>
+                <div class="update-settings-actions">
+                    <button class="btn btn-secondary" id="btnCheckForUpdates" type="button">
+                        <span style="display:flex;align-items:center;gap:0.45rem;"><i data-lucide="refresh-cw"
+                                style="width:16px;height:16px;"></i> Check For Updates</span>
+                    </button>
+                    <button class="btn btn-primary" id="btnInstallUpdate" type="button" hidden>
+                        <span style="display:flex;align-items:center;gap:0.45rem;"><i data-lucide="download"
+                                style="width:16px;height:16px;"></i> Install Update</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions settings-grid-full" style="margin-top: 1rem; display: flex; justify-content: flex-start;">
+                <button class="btn btn-primary" id="btnCloseSettings"
+                    style="width: 130px !important; flex: 0 0 auto !important; border-radius: 50px;">Done</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Whitelist Modal -->
+    <div class="modal-overlay" id="whitelistModal">
+        <div class="modal" style="max-width: 800px; width: 95%;">
+            <h3 style="display:flex;align-items:center;gap:0.4rem"><i data-lucide="users"
+                    style="width:20px;height:20px;"></i> Resident Whitelist Onboarding</h3>
+            <p style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 1rem; margin-top: -0.5rem;">
+                Pre-register residents. If an onboarded vehicle is scanned, it will automatically be tagged as
+                'Resident'.</p>
+
+            <!-- Add Resident Form -->
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-bottom: 1.5rem; background: var(--bg-card); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.65rem;">Resident Name</label>
+                    <input type="text" class="form-input" id="wlName" placeholder="Name">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.65rem;">Flat/Unit No.</label>
+                    <input type="text" class="form-input" id="wlFlat" placeholder="e.g. A-101">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.65rem;">Vehicle No.</label>
+                    <input type="text" class="form-input" id="wlVehicle" placeholder="e.g. MH01AB1234">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.65rem;">Contact No.</label>
+                    <input type="text" class="form-input" id="wlContact" placeholder="Phone">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label style="font-size: 0.65rem;">Status</label>
+                    <select class="form-select" id="wlStatus">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin: 0; display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="btnAddResident"
+                        style="width: 100%; white-space: nowrap; display:flex; align-items:center; justify-content:center; gap:0.4rem;"><i
+                            data-lucide="user-plus" style="width:16px;height:16px;"></i> Add Resident</button>
+                </div>
+            </div>
+
+            <!-- Whitelist Table -->
+            <div class="log-table-wrap" style="max-height: 300px; border-radius: var(--radius-sm);">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Sr. No.</th>
+                            <th>Resident Name</th>
+                            <th>Flat/Unit No.</th>
+                            <th>Vehicle No.</th>
+                            <th>Contact No.</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="whitelistTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+                <div id="wlEmptyState"
+                    style="text-align: center; padding: 2rem; color: var(--text-tertiary); font-size: 0.85rem; display: none;">
+                    No residents onboarded yet.
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button class="btn btn-secondary" id="btnCloseWhitelist"
+                    style="width: 100%; border-radius: 50px;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="firstRunSetupModal">
+        <div class="modal first-run-modal">
+            <div class="first-run-head">
+                <img src="img/gatiq-mark-dark.png" alt="GATIQ Brand" class="first-run-brand brand-logo-image" data-brand-logo="primary">
+                <div>
+                    <h3>Welcome To GATIQ Desktop</h3>
+                    <p>Finish the first-time setup once and your local AI workspace will stay managed, secure, and ready to use.</p>
+                </div>
+            </div>
+
+            <div class="first-run-grid">
+                <article class="first-run-card">
+                    <strong>Managed Local Backend</strong>
+                    <span id="firstRunBackendStatus">Starting managed desktop backend...</span>
+                </article>
+                <article class="first-run-card">
+                    <strong>Secure Runtime</strong>
+                    <span>Local logs, runtime data, and backend secrets stay inside the desktop app profile.</span>
+                </article>
+                <article class="first-run-card">
+                    <strong>Installer Ready</strong>
+                    <span>Shortcuts, uninstall support, and packaged AI runtime are already enabled in desktop mode.</span>
+                </article>
+            </div>
+
+            <div class="first-run-form">
+                <div class="form-group">
+                    <label>Operator Name</label>
+                    <input type="text" class="form-input" id="firstRunOperatorName" placeholder="Security operator name">
+                </div>
+                <div class="form-group">
+                    <label>Facility / Society Name</label>
+                    <input type="text" class="form-input" id="firstRunFacility" placeholder="e.g. Sky Heights">
+                </div>
+                <div class="form-group">
+                    <label>Gate / Checkpoint</label>
+                    <div class="select-wrapper">
+                        <select class="form-select" id="firstRunGate">
+                            <option value="Gate 1">Gate 1</option>
+                            <option value="Gate 2">Gate 2</option>
+                            <option value="Gate 3">Gate 3</option>
+                            <option value="Gate 4">Gate 4</option>
+                            <option value="Main Entrance">Main Entrance</option>
+                            <option value="Service Gate">Service Gate</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Deployment Area</label>
+                    <div class="select-wrapper">
+                        <select class="form-select" id="firstRunArea">
+                            <option value="Residential Society">Residential Society</option>
+                            <option value="Factories & Manufacturing Plants">Factories & Manufacturing Plants</option>
+                            <option value="Warehouses & Logistics Hubs">Warehouses & Logistics Hubs</option>
+                            <option value="Commercial Tech Parks & Business Centers">Commercial Tech Parks & Business Centers</option>
+                            <option value="Educational Institutions">Educational Institutions</option>
+                            <option value="Hotels & Resorts">Hotels & Resorts</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="select-icon" style="width:16px;height:16px;"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions first-run-actions">
+                <button class="btn btn-secondary" id="btnFirstRunLater" type="button">Later</button>
+                <button class="btn btn-secondary" id="btnFirstRunOpenSettings" type="button">Advanced Settings</button>
+                <button class="btn btn-primary" id="btnFirstRunSave" type="button">Complete Setup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="js/camera.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/plate-scanner.js"></script>
+    <script src="js/log-manager.js"></script>
+    <script src="js/logo-data.js"></script>
+    <script src="js/pdf-export.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="js/app.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // Init Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
