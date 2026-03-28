@@ -304,6 +304,37 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
     }
 
+    async function waitForBackendJob(jobId, timeoutMs = 60000) {
+        const startedAt = Date.now();
+        while (true) {
+            const job = await fetchAPI(`/jobs/${encodeURIComponent(jobId)}`);
+            if (job?.status === 'succeeded') return job;
+            if (job?.status === 'failed' || job?.status === 'cancelled') {
+                throw new Error(job?.error_message || `Job ${job?.status || 'failed'}`);
+            }
+            if (Date.now() - startedAt > timeoutMs) {
+                throw new Error('Timed out waiting for backend job.');
+            }
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+    }
+
+    function trackReportJobs(jobIds = []) {
+        if (!Array.isArray(jobIds) || !jobIds.length) return;
+        jobIds.forEach((jobId) => {
+            waitForBackendJob(jobId, 45000)
+                .then(async () => {
+                    await fetchPDFHistoryFromAPI(getActiveArea());
+                    syncQuickAreaFilterOptions();
+                    renderQuickAccessResults();
+                    renderDashboard();
+                })
+                .catch((err) => {
+                    console.error('Report job failed:', err);
+                });
+        });
+    }
+
     // ---- Whitelist API ----
     async function fetchWhitelist() {
         try {
@@ -362,14 +393,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function savePDFReportAPI(report) {
-        return fetchAPI('/reports', {
+        return fetchAPI('/reports/jobs', {
             method: 'POST',
             body: JSON.stringify({
                 id: report.id,
                 name: report.societyName,
                 area: report.area,
+                gate_no: report.gateId,
                 timestamp: report.generatedAt,
-                entry_count: report.totalEntries
+                entry_count: report.totalEntries,
+                snapshot: {
+                    generatedAt: report.generatedAt,
+                    totalEntries: report.totalEntries
+                }
             })
         });
     }
@@ -447,6 +483,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             document.body.classList.remove('startup-loading');
         }, remaining);
+    }
+
+    function handleStartupFailure(error) {
+        const message = error instanceof Error ? error.message : String(error || 'Unknown startup failure');
+        console.error('GATIQ startup failed:', error);
+        updateBackendConnectionStatus(`Startup failed: ${message}`, 'error');
+        if (firstRunBackendStatus) firstRunBackendStatus.textContent = `Startup failed: ${message}`;
+        showToast(`Startup failed: ${message}`, 'error');
+        finishStartupSplash();
     }
 
     function updateDeploymentUI(area) {
@@ -1322,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1. Purge Reports (PDFs)
             // Backend should handle cutoff filtering normally via logs/reports clean up.
             // But we can trigger deletion of old reports if needed.
-            const history = await getPDFHistory();
+            const history = await getPDFHistoryAsync();
             for (const report of history) {
                 const date = new Date(report.generatedAt);
                 if (date < twelveMonthsAgo) {
@@ -1461,7 +1506,11 @@ document.addEventListener('DOMContentLoaded', () => {
         restoreAuthenticatedSession();
     }
 
-    init();
+    init()
+        .then(() => {
+            finishStartupSplash();
+        })
+        .catch(handleStartupFailure);
 
     function getInteractiveButton(target) {
         return target?.closest?.(IOS_BUTTON_SELECTOR) || null;
@@ -1595,6 +1644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setActiveUserScope(null);
         await initializeBackendRuntime();
         await initializeUpdaterRuntime();
+        await getPDFHistoryAsync();
 
         // Load saved settings
         const savedSociety = storageGet(SOCIETY_KEY);
@@ -1613,7 +1663,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Load saved theme
         initTheme();
-        finishStartupSplash();
         initCloudSync();
         initSyncStatus();
         updateScanButton();
@@ -2483,36 +2532,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const cloudEnabled = quickCloudSyncToggle && quickCloudSyncToggle.classList.contains('on');
         if (!cloudEnabled) return;
 
-        const { entryUrl, apiKey } = getBackendConfig();
-
         try {
-            const response = await fetch(entryUrl, {
+            if (syncStatusText) syncStatusText.textContent = 'Syncing queued changes...';
+            const accepted = await fetchAPI('/sync/jobs', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': apiKey
-                },
                 body: JSON.stringify({
-                    vehicle_no: entry.vehicleNo,
-                    vehicle_type: entry.vehicleType || 'Unknown',
-                    gate_no: entry.gateNo,
-                    area: entry.area,
-                    status: entry.status || 'IN',
-                    driver_info: (entry.driverName !== '-' || entry.driverPhone !== '-') ? { name: entry.driverName, phone: entry.driverPhone } : null,
-                    purpose: entry.purpose,
-                    tagging: entry.tagging,
-                    consignment_details: (entry.consignmentNo !== '-' || entry.dockNo !== '-') ? { consignment_no: entry.consignmentNo, dock_no: entry.dockNo } : null
+                    area: typeof entry === 'string' ? entry : entry?.area || getActiveArea()
                 })
             });
-
-            if (response.ok) {
-                console.log('Successfully synced to GATIQ Backend');
-                markSyncNow();
-            } else {
-                const errorText = await response.text();
-                console.error('Failed to sync to GATIQ Backend:', errorText);
-                updateBackendConnectionStatus(`Sync failed: ${errorText || `HTTP ${response.status}`}`, 'error');
-            }
+            const completed = await waitForBackendJob(accepted.job_id, 45000);
+            console.log('Successfully completed backend sync job', completed);
+            markSyncNow();
         } catch (err) {
             console.error('Network error syncing to GATIQ Backend:', err);
             updateBackendConnectionStatus(`Sync error: ${err.message}`, 'error');
@@ -2542,15 +2572,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const camSource = cameraSourceSelect?.value || 'webcam';
+            const activeArea = getActiveArea();
+            const commonScanPayload = {
+                area: activeArea,
+                gateNo: gateSelect.value,
+                facilityName: societyInput?.value.trim() || getFacilityLabel(activeArea) || 'GATIQ',
+                purpose: purposeSelect.value,
+                vehicleType: currentConfig.hasVehicleType ? document.getElementById('visitVehicleType')?.value : 'Car',
+                vehicleCapacity: currentConfig.hasVehicleCapacity ? document.getElementById('logisticsCapacity')?.value : '',
+                dockNo: currentConfig.hasDockNo ? document.getElementById('logisticsDockNo')?.value : '',
+                consignmentNo: currentConfig.hasConsignmentNo ? document.getElementById('logisticsConsignment')?.value : '',
+                driverName: currentConfig.hasDriverInfo ? document.getElementById('visitDriverName')?.value : '',
+                driverPhone: currentConfig.hasDriverInfo ? document.getElementById('visitDriverPhone')?.value : '',
+                status: ''
+            };
             let result;
 
             if (camSource === 'cctv') {
                 const rtspUrl = cctvUrlInput?.value.trim();
                 showToast('Connecting to CCTV stream...', 'info');
-                result = await PlateScanner.scanCCTV(backendConfig, rtspUrl);
+                result = await PlateScanner.scanCCTV(backendConfig, {
+                    ...commonScanPayload,
+                    rtspUrl
+                });
             } else {
                 const imageBase64 = Camera.getCurrentImage();
-                result = await PlateScanner.scanPlate(backendConfig, imageBase64);
+                result = await PlateScanner.scanPlate(backendConfig, {
+                    ...commonScanPayload,
+                    imageBase64: imageBase64?.base64
+                });
             }
             const rawDetections = Array.isArray(result.detections) && result.detections.length
                 ? result.detections
@@ -2582,31 +2632,10 @@ document.addEventListener('DOMContentLoaded', () => {
             plateResult?.classList.add('visible');
 
             if (uniqueReadableDetections.length > 0) {
-                const gateId = gateSelect.value;
-                const activeArea = getActiveArea();
-
-                uniqueReadableDetections.forEach(async (detection) => {
-                    const purpose = detection.residentMatch ? 'Resident' : purposeSelect.value;
-
-                    const newEntry = await LogManager.addEntry({
-                        area: activeArea,
-                        gateNo: gateId,
-                        vehicleNo: detection.plateNumber,
-                        entryExit: detection.direction,
-                        purpose: purpose,
-                        tagging: detection.finalTagging,
-                        vehicleType: detection.vehicleType || (currentConfig.hasVehicleType ? document.getElementById('visitVehicleType').value : 'Car'),
-                        vehicleCapacity: currentConfig.hasVehicleCapacity ? document.getElementById('logisticsCapacity').value : '',
-                        dockNo: currentConfig.hasDockNo ? document.getElementById('logisticsDockNo').value : '',
-                        consignmentNo: currentConfig.hasConsignmentNo ? document.getElementById('logisticsConsignment').value : '',
-                        driverName: currentConfig.hasDriverInfo ? document.getElementById('visitDriverName').value : '',
-                        driverPhone: currentConfig.hasDriverInfo ? document.getElementById('visitDriverPhone').value : '',
-                        status: detection.direction
-                    });
-                });
-
+                await LogManager.loadFromServer(activeArea);
                 renderTable();
-                await syncAutoPDFSnapshot(activeArea);
+                trackReportJobs(result.reportJobIds);
+                syncToGatiqAPI(activeArea).catch((err) => console.error('Async sync failed:', err));
                 showToast(
                     uniqueReadableDetections.length === 1
                         ? `${uniqueReadableDetections[0].plateNumber} - ${uniqueReadableDetections[0].direction} logged.`
@@ -2673,6 +2702,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderTable();
             await syncAutoPDFSnapshot(activeArea);
+            syncToGatiqAPI(activeArea).catch((err) => console.error('Async sync failed:', err));
             showToast(`<i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px"></i> Manual Entry: ${vehicle} — ${dirValue} logged!`, 'success');
         } catch (err) {
             showToast(`Manual add failed: ${err.message}`, 'error');
@@ -3876,15 +3906,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let localPDFHistory = []; // Cache
 
-    async function getPDFHistory() {
+    function getPDFHistory() {
+        return Array.isArray(localPDFHistory) ? localPDFHistory : [];
+    }
+
+    async function getPDFHistoryAsync() {
         if (localPDFHistory.length > 0) return localPDFHistory;
         localPDFHistory = await fetchPDFHistoryFromAPI(null);
         return localPDFHistory;
     }
 
-    async function getVisiblePDFHistory() {
+    async function getVisiblePDFHistoryAsync() {
         const policy = getAccessPolicy();
-        const history = await getPDFHistory();
+        const history = await getPDFHistoryAsync();
         if (policy.isSuperAdmin) return history;
         return history.filter(report => sanitizeArea(report.area || DEFAULT_AREA) === policy.assignedArea);
     }
@@ -3896,7 +3930,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function savePDFReportToAPI(report) {
         try {
-            await savePDFReportAPI(report);
+            const accepted = await savePDFReportAPI(report);
+            await waitForBackendJob(accepted.job_id, 45000);
             localPDFHistory.unshift(report);
             return true;
         } catch (err) {
@@ -3969,7 +4004,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function openQuickAccessReport(reportId) {
-        const report = getVisiblePDFHistory().find(item => item.id === reportId);
+        const report = (await getVisiblePDFHistoryAsync()).find(item => item.id === reportId);
         if (!report) {
             showToast('<i data-lucide="alert-triangle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> PDF record not found.', 'error');
             return;
@@ -4023,7 +4058,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleExportSelectedReports() {
-        const history = getVisiblePDFHistory();
+        const history = await getVisiblePDFHistoryAsync();
         const selectedReports = history.filter(r => selectedQuickReportIds.has(r.id));
         if (!selectedReports.length) {
             showToast('<i data-lucide="alert-triangle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i> Select at least one PDF record.', 'error');
