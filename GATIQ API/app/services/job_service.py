@@ -11,8 +11,9 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
-from . import ai_runtime, log_service, report_service
+from . import ai_runtime, log_service, report_service, sync_service
 from .event_service import list_job_events, record_event
+from .normalization_service import get_or_create_device, get_or_create_gate, get_or_create_site, get_or_create_user
 
 JOB_STATUS_QUEUED = "queued"
 JOB_STATUS_RUNNING = "running"
@@ -155,8 +156,28 @@ def enqueue_scan_job(
 
     existing_scan_job = db.query(models.ScanJob).filter(models.ScanJob.job_id == job.job_id).first()
     if not existing_scan_job:
+        site = db.query(models.Site).filter(models.Site.id == request.site_id).first() if request.site_id else None
+        if site is None:
+            site = get_or_create_site(db, area=request.area, facility_name=request.facility_name)
+        gate = db.query(models.Gate).filter(models.Gate.id == request.gate_id).first() if request.gate_id else None
+        if gate is None:
+            gate = get_or_create_gate(db, site_id=site.id if site else None, gate_name=request.gate_no)
+        user = db.query(models.AppUser).filter(models.AppUser.id == request.user_id).first() if request.user_id else None
+        if user is None:
+            user = get_or_create_user(db, operator_name=request.operator_name)
+        device = get_or_create_device(
+            db,
+            site_id=site.id if site else None,
+            gate_id=gate.id if gate else None,
+            device_uid=request.device_id,
+            label=request.gate_no,
+        )
         scan_job = models.ScanJob(
             job_id=job.job_id,
+            site_id=site.id if site else request.site_id,
+            gate_id=gate.id if gate else request.gate_id,
+            device_row_id=device.id if device else None,
+            user_id=user.id if user else request.user_id,
             source=source,
             area=request.area,
             gate_no=request.gate_no,
@@ -173,7 +194,7 @@ def enqueue_scan_job(
             image_base64=getattr(request, "image_base64", None),
             rtsp_url=getattr(request, "rtsp_url", None),
             operator_name=request.operator_name,
-            device_id=request.device_id,
+            device_id=device.device_uid if device else request.device_id,
         )
         db.add(scan_job)
         db.commit()
@@ -199,9 +220,31 @@ def enqueue_report_job(db: Session, request: schemas.ReportJobCreate) -> schemas
 
     existing = db.query(models.ReportJob).filter(models.ReportJob.job_id == job.job_id).first()
     if not existing:
+        site = db.query(models.Site).filter(models.Site.id == request.site_id).first() if request.site_id else None
+        if site is None:
+            site = get_or_create_site(db, area=request.area, facility_name=request.name)
+        gate = db.query(models.Gate).filter(models.Gate.id == request.gate_id).first() if request.gate_id else None
+        if gate is None:
+            gate = get_or_create_gate(db, site_id=site.id if site else None, gate_name=request.gate_no)
+        user = db.query(models.AppUser).filter(models.AppUser.id == request.user_id).first() if request.user_id else None
+        if user is None:
+            user = get_or_create_user(db, operator_name="Local Operator")
+        device = db.query(models.Device).filter(models.Device.id == request.device_id).first() if request.device_id else None
+        if device is None:
+            device = get_or_create_device(
+                db,
+                site_id=site.id if site else None,
+                gate_id=gate.id if gate else None,
+                device_uid=f"report-{site.id if site else 0}-{gate.id if gate else 0}",
+                label=request.name,
+            )
         db.add(
             models.ReportJob(
                 job_id=job.job_id,
+                site_id=site.id if site else request.site_id,
+                gate_id=gate.id if gate else request.gate_id,
+                device_id=device.id if device else request.device_id,
+                user_id=user.id if user else request.user_id,
                 report_id=request.id,
                 name=request.name,
                 area=request.area,
@@ -264,7 +307,7 @@ def get_job_events(db: Session, job_id: str) -> List[schemas.EventJournalRespons
 
 def get_queue_stats(db: Session) -> Dict[str, Any]:
     queue_depth = db.query(models.JobQueue).filter(models.JobQueue.status.in_(list(ACTIVE_JOB_STATUSES))).count()
-    return {
+    stats = {
         "worker_running": _worker_started and _worker_thread is not None and _worker_thread.is_alive(),
         "queue_depth": queue_depth,
         "pending_scan_jobs": db.query(models.JobQueue).filter(
@@ -280,6 +323,8 @@ def get_queue_stats(db: Session) -> Dict[str, Any]:
             models.JobQueue.status.in_(list(ACTIVE_JOB_STATUSES)),
         ).count(),
     }
+    stats.update(sync_service.get_sync_stats(db))
+    return stats
 
 
 def start_worker() -> None:
@@ -450,9 +495,27 @@ def _process_scan_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
             driver_name=scan_job.driver_name,
             driver_phone=scan_job.driver_phone,
             status=scan_job.status_label or vehicle.direction,
+            site_id=scan_job.site_id,
+            gate_id=scan_job.gate_id,
+            device_id=scan_job.device_row_id,
+            user_id=scan_job.user_id,
         )
         created_log = log_service.create_vehicle_log(log_entry, db)
         log_ids.append(created_log.id)
+        db.add(
+            models.ScanResult(
+                scan_job_id=job.job_id,
+                site_id=scan_job.site_id,
+                gate_id=scan_job.gate_id,
+                detected_plate=plate_number,
+                direction=vehicle.direction,
+                tagging=vehicle.tagging,
+                vehicle_type=vehicle.vehicle_type,
+                raw_payload_json=_dumps(_model_dump(vehicle)),
+                created_log_id=created_log.id,
+            )
+        )
+        db.commit()
 
     record_event(
         db,
@@ -469,6 +532,10 @@ def _process_scan_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
         area_entries = db.query(models.VehicleLog).filter(models.VehicleLog.area == scan_job.area).count()
         report_request = schemas.ReportJobCreate(
             id=f"pdf_{int(time.time() * 1000)}_{uuid.uuid4().hex[:6]}",
+            site_id=scan_job.site_id,
+            gate_id=scan_job.gate_id,
+            device_id=scan_job.device_row_id,
+            user_id=scan_job.user_id,
             name=scan_job.facility_name or scan_job.area or "GATIQ Report",
             area=scan_job.area,
             gate_no=scan_job.gate_no,
@@ -504,13 +571,18 @@ def _process_report_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
     if not report_job:
         raise RuntimeError("Report job metadata missing")
 
-    report = report_service.ensure_pdf_report(
+        report = report_service.ensure_pdf_report(
         db,
         report_id=report_job.report_id,
         name=report_job.name,
         area=report_job.area,
         timestamp=report_job.timestamp,
         entry_count=report_job.entry_count,
+        site_id=report_job.site_id,
+        gate_id=report_job.gate_id,
+        device_id=report_job.device_id,
+        user_id=report_job.user_id,
+        gate_no=report_job.gate_no,
     )
     report_job.result_report_id = report.id
     db.commit()
@@ -535,18 +607,19 @@ def _process_report_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
 def _process_sync_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
     payload = _job_payload(job)
     area = payload.get("area")
-    query = db.query(models.VehicleLog).filter(models.VehicleLog.is_synced == False)
-    if area:
-        query = query.filter(models.VehicleLog.area == area)
-    unsynced = query.all()
-    for log in unsynced:
-        log.is_synced = True
-    db.commit()
+    result = sync_service.process_sync_batch(
+        db,
+        job_id=job.job_id,
+        correlation_id=job.correlation_id,
+        area=area,
+    )
 
     sync_run = db.query(models.SyncRun).filter(models.SyncRun.job_id == job.job_id).first()
     if sync_run:
-        sync_run.status = JOB_STATUS_SUCCEEDED
-        sync_run.synced_count = len(unsynced)
+        sync_run.status = JOB_STATUS_FAILED if result["failed_count"] and not result["synced_count"] else JOB_STATUS_SUCCEEDED
+        sync_run.synced_count = result["synced_count"]
+        sync_run.failed_count = result["failed_count"]
+        sync_run.last_error = result["failures"][0]["error"] if result.get("failures") else None
         sync_run.started_at = job.started_at
         sync_run.completed_at = _utcnow()
         db.commit()
@@ -558,7 +631,7 @@ def _process_sync_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
         aggregate_id=job.job_id,
         job_id=job.job_id,
         correlation_id=job.correlation_id,
-        payload={"synced_count": len(unsynced), "area": area},
+        payload=result,
     )
 
-    return {"synced_count": len(unsynced), "area": area}
+    return result

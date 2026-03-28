@@ -6,9 +6,14 @@ from .core.config import API_TITLE, API_VERSION, CORS_ORIGIN_REGEX, ensure_requi
 from .routers import auth, health, jobs, logs, reports, root, scan, sync, whitelist
 from .services.ai_runtime import warmup_async
 from .services.job_service import start_worker
+from .services.normalization_service import backfill_normalized_references
+from .services.schema_service import ensure_normalized_schema
 
 ensure_required_config()
+ensure_normalized_schema()
 models.Base.metadata.create_all(bind=database.engine)
+with database.SessionLocal() as _db:
+    backfill_normalized_references(_db)
 
 app = FastAPI(title=API_TITLE, version=API_VERSION)
 

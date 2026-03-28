@@ -5,6 +5,10 @@ from pydantic import BaseModel, Field
 
 
 class VehicleLogCreate(BaseModel):
+    site_id: Optional[int] = None
+    gate_id: Optional[int] = None
+    device_id: Optional[int] = None
+    user_id: Optional[int] = None
     vehicle_no: str
     vehicle_type: str
     gate_no: str
@@ -51,6 +55,9 @@ class ScanResponse(BaseModel):
 
 
 class ScanJobOptions(BaseModel):
+    site_id: Optional[int] = None
+    gate_id: Optional[int] = None
+    user_id: Optional[int] = None
     area: str
     gate_no: str
     facility_name: Optional[str] = None
@@ -105,6 +112,10 @@ class WhitelistResponse(WhitelistBase):
 
 class PDFReportSchema(BaseModel):
     id: str
+    site_id: Optional[int] = None
+    gate_id: Optional[int] = None
+    device_id: Optional[int] = None
+    user_id: Optional[int] = None
     name: str
     area: str
     timestamp: datetime.datetime
@@ -116,6 +127,10 @@ class PDFReportSchema(BaseModel):
 
 class ReportJobCreate(BaseModel):
     id: str
+    site_id: Optional[int] = None
+    gate_id: Optional[int] = None
+    device_id: Optional[int] = None
+    user_id: Optional[int] = None
     name: str
     area: str
     gate_no: Optional[str] = None
@@ -126,6 +141,12 @@ class ReportJobCreate(BaseModel):
 
 class SyncJobCreate(BaseModel):
     area: Optional[str] = None
+
+
+class SyncStatusResponse(BaseModel):
+    pending_sync_records: int
+    failed_sync_records: int
+    last_synced_at: Optional[str] = None
 
 
 class JobAcceptedResponse(BaseModel):

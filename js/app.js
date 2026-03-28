@@ -375,17 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- PDF Reports API ----
     async function fetchPDFHistoryAPI(area) {
         try {
-            const query = area ? `?area=${encodeURIComponent(area)}` : '';
-            const data = await fetchAPI(`/reports${query}`);
-            return data.map(r => ({
-                id: r.id,
-                generatedAt: r.timestamp,
-                area: r.area,
-                societyName: r.name,
-                gateId: 'Main Gate',
-                totalEntries: r.entry_count,
-                entries: [] // Details fetched on demand if needed
-            }));
+            return await GatiqBackend.fetchPDFHistoryAPI({ fetchAPI, area });
         } catch (err) {
             console.error('PDF History fetch failed:', err);
             return [];
@@ -393,21 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function savePDFReportAPI(report) {
-        return fetchAPI('/reports/jobs', {
-            method: 'POST',
-            body: JSON.stringify({
-                id: report.id,
-                name: report.societyName,
-                area: report.area,
-                gate_no: report.gateId,
-                timestamp: report.generatedAt,
-                entry_count: report.totalEntries,
-                snapshot: {
-                    generatedAt: report.generatedAt,
-                    totalEntries: report.totalEntries
-                }
-            })
-        });
+        return GatiqBackend.savePDFReportAPI({ fetchAPI, report });
     }
 
     async function deletePDFReportAPI(id) {
@@ -573,58 +549,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function sanitizeAccessRole(role) {
-        return role === SUPER_ADMIN_ROLE ? SUPER_ADMIN_ROLE : OPERATOR_ROLE;
+        return GatiqAuth.sanitizeAccessRole(role, {
+            superAdminRole: SUPER_ADMIN_ROLE,
+            operatorRole: OPERATOR_ROLE
+        });
     }
 
     function getRoleLabel(role) {
-        return role === SUPER_ADMIN_ROLE ? 'Super Admin' : 'Operator';
+        return GatiqAuth.getRoleLabel(role, {
+            superAdminRole: SUPER_ADMIN_ROLE,
+            operatorRole: OPERATOR_ROLE
+        });
     }
 
     function getAccessPolicy(profile = getProfile()) {
-        const accessRole = sanitizeAccessRole(profile.accessRole);
-        const assignedArea = sanitizeArea(profile.assignedArea);
-        return {
-            accessRole,
-            assignedArea,
-            isSuperAdmin: accessRole === SUPER_ADMIN_ROLE,
-            allowedAreas: accessRole === SUPER_ADMIN_ROLE ? getAllAreas() : [assignedArea]
-        };
+        return GatiqAuth.getAccessPolicy({
+            profile,
+            getAllAreas,
+            sanitizeArea,
+            roles: {
+                superAdminRole: SUPER_ADMIN_ROLE,
+                operatorRole: OPERATOR_ROLE
+            }
+        });
     }
 
     function getDefaultProfile() {
-        return {
-            name: 'GATIQ Operator',
-            role: getRoleLabel(OPERATOR_ROLE),
-            accessRole: OPERATOR_ROLE,
-            assignedArea: DEFAULT_AREA,
-            email: 'operator@gatiq.in',
-            phone: '+91 98765 43210',
-            plan: 'Starter',
-            renewal: 'Renews on 30 Apr 2026'
-        };
+        return GatiqAuth.getDefaultProfile({
+            defaultArea: DEFAULT_AREA,
+            roles: {
+                superAdminRole: SUPER_ADMIN_ROLE,
+                operatorRole: OPERATOR_ROLE
+            }
+        });
     }
 
     function normalizeProfile(profile) {
-        const defaults = getDefaultProfile();
-        const raw = profile && typeof profile === 'object' ? profile : {};
-        const legacyRole = normalizeText(raw.role);
-        const hasConfirmedAccessRole = raw.accessRoleConfirmed === true;
-        const inferredRole = hasConfirmedAccessRole && (legacyRole.includes('super admin') || raw.accessRole === SUPER_ADMIN_ROLE)
-            ? SUPER_ADMIN_ROLE
-            : OPERATOR_ROLE;
-        const accessRole = hasConfirmedAccessRole
-            ? sanitizeAccessRole(raw.accessRole || inferredRole)
-            : inferredRole;
-        const assignedArea = sanitizeArea(raw.assignedArea || defaults.assignedArea);
-
-        return {
-            ...defaults,
-            ...raw,
-            accessRole,
-            accessRoleConfirmed: true,
-            assignedArea,
-            role: getRoleLabel(accessRole)
-        };
+        return GatiqAuth.normalizeProfile({
+            profile,
+            defaultArea: DEFAULT_AREA,
+            sanitizeArea,
+            normalizeText,
+            roles: {
+                superAdminRole: SUPER_ADMIN_ROLE,
+                operatorRole: OPERATOR_ROLE
+            }
+        });
     }
 
     function getProfile() {
@@ -637,64 +607,80 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function normalizeAuthUser(user) {
-        const normalizedProfile = normalizeProfile(user);
-        return {
-            id: user?.id || `user_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            name: normalizedProfile.name,
-            email: String(user?.email || normalizedProfile.email || '').trim().toLowerCase(),
-            phone: normalizedProfile.phone,
-            password: String(user?.password || ''),
-            accessRole: normalizedProfile.accessRole,
-            accessRoleConfirmed: true,
-            assignedArea: normalizedProfile.assignedArea,
-            role: normalizedProfile.role,
-            plan: normalizedProfile.plan,
-            renewal: normalizedProfile.renewal,
-            freshWorkspace: user?.freshWorkspace === true
-        };
+        return GatiqAuth.normalizeAuthUser({
+            user,
+            defaultArea: DEFAULT_AREA,
+            sanitizeArea,
+            normalizeText,
+            roles: {
+                superAdminRole: SUPER_ADMIN_ROLE,
+                operatorRole: OPERATOR_ROLE
+            }
+        });
     }
 
     function getAuthUsers() {
-        try {
-            const saved = JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]');
-            return Array.isArray(saved) ? saved.map(normalizeAuthUser) : [];
-        } catch {
-            return [];
-        }
+        return GatiqAuth.getAuthUsers({
+            storage: localStorage,
+            storageKey: AUTH_USERS_KEY,
+            defaultArea: DEFAULT_AREA,
+            sanitizeArea,
+            normalizeText,
+            roles: {
+                superAdminRole: SUPER_ADMIN_ROLE,
+                operatorRole: OPERATOR_ROLE
+            }
+        });
     }
 
     function saveAuthUsers(users) {
-        localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users.map(normalizeAuthUser)));
+        GatiqAuth.saveAuthUsers({
+            storage: localStorage,
+            storageKey: AUTH_USERS_KEY,
+            users,
+            defaultArea: DEFAULT_AREA,
+            sanitizeArea,
+            normalizeText,
+            roles: {
+                superAdminRole: SUPER_ADMIN_ROLE,
+                operatorRole: OPERATOR_ROLE
+            }
+        });
     }
 
     function buildProfileFromAuthUser(user) {
-        return normalizeProfile({
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            accessRole: user.accessRole,
-            accessRoleConfirmed: true,
-            assignedArea: user.assignedArea,
-            role: user.role,
-            plan: user.plan,
-            renewal: user.renewal
+        return GatiqAuth.buildProfileFromAuthUser({
+            user,
+            defaultArea: DEFAULT_AREA,
+            sanitizeArea,
+            normalizeText,
+            roles: {
+                superAdminRole: SUPER_ADMIN_ROLE,
+                operatorRole: OPERATOR_ROLE
+            }
         });
     }
 
     function getAuthSession() {
-        try {
-            return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null');
-        } catch {
-            return null;
-        }
+        return GatiqAuth.getAuthSession({
+            storage: localStorage,
+            storageKey: AUTH_SESSION_KEY
+        });
     }
 
     function saveAuthSession(session) {
-        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+        GatiqAuth.saveAuthSession({
+            storage: localStorage,
+            storageKey: AUTH_SESSION_KEY,
+            session
+        });
     }
 
     function clearAuthSession() {
-        localStorage.removeItem(AUTH_SESSION_KEY);
+        GatiqAuth.clearAuthSession({
+            storage: localStorage,
+            storageKey: AUTH_SESSION_KEY
+        });
     }
 
     function getDemoLogEntries() {
@@ -736,27 +722,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncCurrentUserRecord(profile) {
-        const session = getAuthSession();
-        if (!session?.userId) return;
-        const users = getAuthUsers();
-        const index = users.findIndex(user => user.id === session.userId);
-        if (index === -1) return;
-
-        const nextUser = normalizeAuthUser({
-            ...users[index],
-            ...profile,
-            email: profile.email || users[index].email
+        GatiqAuth.syncCurrentUserRecord({
+            profile,
+            getAuthSession,
+            getAuthUsers,
+            normalizeAuthUser,
+            saveAuthUsers,
+            saveAuthSession
         });
-        users[index] = nextUser;
-        saveAuthUsers(users);
-        saveAuthSession({ ...session, userId: nextUser.id, email: nextUser.email });
     }
 
     function saveProfile(profile) {
-        const normalized = normalizeProfile(profile);
-        storageSet(PROFILE_KEY, JSON.stringify(normalized));
-        syncCurrentUserRecord(normalized);
-        return normalized;
+        return GatiqAuth.saveProfile({
+            profile,
+            storageSet,
+            profileKey: PROFILE_KEY,
+            normalizeProfile,
+            syncCurrentUserRecord
+        });
     }
 
     function getActiveArea() {
@@ -835,23 +818,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getScopedEntries(area = getActiveArea()) {
-        const normalizedArea = sanitizeArea(area);
-        return LogManager.getAll().filter(entry => sanitizeArea(entry.area || DEFAULT_AREA) === normalizedArea);
+        return GatiqDomain.getScopedEntries({
+            entries: LogManager.getAll(),
+            area,
+            sanitizeArea,
+            defaultArea: DEFAULT_AREA
+        });
     }
 
     function getEntryStats(entries) {
-        return {
-            total: entries.length,
-            entries: entries.filter(e => normalizeText(e.entryExit) === 'entry').length,
-            exits: entries.filter(e => normalizeText(e.entryExit) === 'exit').length
-        };
+        return GatiqDomain.getEntryStats(entries, normalizeText);
     }
 
     function getVisiblePDFHistory() {
-        const policy = getAccessPolicy();
-        const history = getPDFHistory();
-        if (policy.isSuperAdmin) return history;
-        return history.filter(report => sanitizeArea(report.area || DEFAULT_AREA) === policy.assignedArea);
+        return GatiqDomain.getVisiblePDFHistory({
+            history: getPDFHistory(),
+            policy: getAccessPolicy(),
+            sanitizeArea,
+            defaultArea: DEFAULT_AREA
+        });
     }
 
     function showAreaRestriction(message) {
@@ -861,13 +846,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function enforceAreaAccess(area, actionLabel) {
-        const normalizedArea = sanitizeArea(area);
-        const policy = getAccessPolicy();
-        if (policy.isSuperAdmin || normalizedArea === policy.assignedArea) {
-            return true;
-        }
-        showAreaRestriction(`${actionLabel} is limited to ${policy.assignedArea}.`);
-        return false;
+        return GatiqDomain.enforceAreaAccess({
+            area,
+            actionLabel,
+            policy: getAccessPolicy(),
+            sanitizeArea,
+            onDenied: showAreaRestriction
+        });
     }
 
     function setDeploymentAreaOptions(select, allowedAreas, hideRestricted = false) {
@@ -881,50 +866,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyAccessPolicy() {
         const profile = getProfile();
-        const policy = getAccessPolicy(profile);
-        const nextArea = policy.isSuperAdmin
-            ? sanitizeArea(deploymentAreaSelect?.value || storageGet(DEPLOYMENT_KEY) || profile.assignedArea)
-            : policy.assignedArea;
-
-        if (profileAccessRole) {
-            profileAccessRole.value = policy.accessRole;
-            profileAccessRole.disabled = !policy.isSuperAdmin;
-        }
-        if (profileAssignedArea) {
-            profileAssignedArea.innerHTML = getAllAreas()
-                .map(area => `<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`)
-                .join('');
-            profileAssignedArea.value = profile.assignedArea;
-            profileAssignedArea.disabled = !policy.isSuperAdmin;
-            setDeploymentAreaOptions(profileAssignedArea, policy.allowedAreas);
-        }
-        if (profileAccessNote) {
-            profileAccessNote.textContent = policy.isSuperAdmin
-                ? 'Super admins can switch deployment areas and assign area scope from this profile.'
-                : `Operator access is locked to ${policy.assignedArea}. Change requests should go through a super admin.`;
-        }
-        if (deploymentAreaSelect) {
-            deploymentAreaSelect.value = nextArea;
-            deploymentAreaSelect.disabled = !policy.isSuperAdmin;
-            deploymentAreaSelect.classList.toggle('access-locked', !policy.isSuperAdmin);
-            setDeploymentAreaOptions(deploymentAreaSelect, policy.allowedAreas, !policy.isSuperAdmin);
-        }
-        if (deploymentAreaBadge) {
-            deploymentAreaBadge.textContent = policy.isSuperAdmin ? 'Editable' : 'Locked';
-            deploymentAreaBadge.classList.toggle('locked', !policy.isSuperAdmin);
-        }
-        if (deploymentAreaHint) {
-            deploymentAreaHint.textContent = policy.isSuperAdmin
-                ? 'Changes the data entry fields and report columns.'
-                : `Locked by access policy. This operator can only work in ${policy.assignedArea}.`;
-        }
-        if (areaLockedPill) areaLockedPill.hidden = policy.isSuperAdmin;
-        if (areaLockedText) areaLockedText.textContent = `Area: ${policy.assignedArea}`;
-
-        storageSet(DEPLOYMENT_KEY, nextArea);
-        updateDeploymentUI(nextArea);
-        updateFacilityLabel(nextArea);
-        syncQuickAreaFilterOptions();
+        GatiqAuth.applyAccessPolicy({
+            profile,
+            getAccessPolicy,
+            getAllAreas,
+            sanitizeArea,
+            getSelectedArea: () => deploymentAreaSelect?.value || storageGet(DEPLOYMENT_KEY) || profile.assignedArea,
+            escapeHtml,
+            storageSet,
+            deploymentKey: DEPLOYMENT_KEY,
+            deploymentAreaSelect,
+            profileAccessRole,
+            profileAssignedArea,
+            profileAccessNote,
+            deploymentAreaBadge,
+            deploymentAreaHint,
+            areaLockedPill,
+            areaLockedText,
+            setDeploymentAreaOptions,
+            updateDeploymentUI,
+            updateFacilityLabel,
+            syncQuickAreaFilterOptions
+        });
     }
 
     function getProfileInitials(name) {
@@ -937,34 +900,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderDefaultProfileAvatar(target) {
-        if (!target) return;
-        target.innerHTML = `
-            <span class="profile-summary-avatar-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z"></path>
-                    <path d="M5 20a7 7 0 0 1 14 0"></path>
-                </svg>
-            </span>`;
-        target.setAttribute('aria-label', 'Default user profile icon');
+        GatiqAuth.renderDefaultProfileAvatar(target);
     }
 
     function renderProfileDetails() {
         const profile = getProfile();
         const policy = getAccessPolicy(profile);
-
-        if (profileName) profileName.value = profile.name;
-        if (profileAccessRole) profileAccessRole.value = policy.accessRole;
-        if (profileAssignedArea) profileAssignedArea.value = profile.assignedArea;
-        if (profileEmail) profileEmail.value = profile.email;
-        if (profilePhone) profilePhone.value = profile.phone;
-        if (profileSummaryAvatar) renderDefaultProfileAvatar(profileSummaryAvatar);
-        if (profileSummaryName) profileSummaryName.textContent = profile.name;
-        if (profileSummaryRole) profileSummaryRole.textContent = `${getRoleLabel(policy.accessRole)} | ${profile.assignedArea}`;
-        if (profilePlanBadge) profilePlanBadge.textContent = profile.plan;
-        if (subscriptionPlanName) subscriptionPlanName.textContent = `${profile.plan} Plan`;
-        if (subscriptionRenewalInfo) subscriptionRenewalInfo.textContent = profile.renewal;
-        applyAccessPolicy();
+        GatiqAuth.renderProfileDetails({
+            profile,
+            policy,
+            getRoleLabel,
+            renderDefaultProfileAvatar,
+            applyAccessPolicy,
+            refs: {
+                profileName,
+                profileAccessRole,
+                profileAssignedArea,
+                profileEmail,
+                profilePhone,
+                profileSummaryAvatar,
+                profileSummaryName,
+                profileSummaryRole,
+                profilePlanBadge,
+                subscriptionPlanName,
+                subscriptionRenewalInfo
+            }
+        });
     }
 
     function updateProfileTrigger() {
@@ -973,10 +934,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const triggerAvatar = document.querySelector('.profile-avatar');
         const triggerName = document.querySelector('.profile-copy strong');
         const triggerMeta = document.querySelector('.profile-copy small');
-
-        if (triggerAvatar) renderDefaultProfileAvatar(triggerAvatar);
-        if (triggerName) triggerName.textContent = profile.name;
-        if (triggerMeta) triggerMeta.textContent = `${getRoleLabel(policy.accessRole)} | ${policy.assignedArea}`;
+        GatiqAuth.updateProfileTrigger({
+            profile,
+            policy,
+            getRoleLabel,
+            renderDefaultProfileAvatar,
+            triggerAvatar,
+            triggerName,
+            triggerMeta
+        });
     }
 
     function initProfile() {
@@ -2480,51 +2446,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function normalizePlateKey(value) {
-        return String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        return GatiqDomain.normalizePlateKey(value);
     }
 
     function enrichDetectionWithWhitelist(detection) {
-        const whitelist = getWhitelist();
-        const normalizedPlate = normalizePlateKey(detection.plateNumber);
-        const residentMatch = normalizedPlate
-            ? whitelist.find(r => r.status === 'Active' && normalizePlateKey(r.vehicle) === normalizedPlate)
-            : null;
-
-        return {
-            ...detection,
-            finalTagging: residentMatch ? 'Resident' : detection.tagging,
-            residentMatch
-        };
+        return GatiqDomain.enrichDetectionWithWhitelist({
+            detection,
+            whitelist: getWhitelist()
+        });
     }
 
     function buildScanSummary(detections) {
-        if (!Array.isArray(detections) || detections.length === 0) {
-            return {
-                plateLabel: 'UNREADABLE',
-                directionLabel: 'Direction: -',
-                taggingLabel: 'Tagging: -'
-            };
-        }
-
-        if (detections.length === 1) {
-            const [item] = detections;
-            return {
-                plateLabel: item.plateNumber,
-                directionLabel: `Direction: ${item.direction}`,
-                taggingLabel: `Tagging: ${item.finalTagging}${item.residentMatch ? ' (Whitelist)' : ''}`,
-                vehicleTypeLabel: item.vehicleType || 'Vehicle'
-            };
-        }
-
-        const distinctDirections = [...new Set(detections.map(item => item.direction))];
-        const distinctTags = [...new Set(detections.map(item => item.finalTagging))];
-
-        return {
-            plateLabel: `${detections.length} VEHICLES DETECTED`,
-            directionLabel: `Direction: ${distinctDirections.length === 1 ? distinctDirections[0] : 'Mixed'}`,
-            taggingLabel: `Tagging: ${distinctTags.length === 1 ? distinctTags[0] : 'Mixed'}`,
-            vehicleTypeLabel: 'Multiple'
-        };
+        return GatiqDomain.buildScanSummary(detections);
     }
 
     // ---- GATIQ Backend Sync ----
@@ -2533,14 +2466,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!cloudEnabled) return;
 
         try {
-            if (syncStatusText) syncStatusText.textContent = 'Syncing queued changes...';
-            const accepted = await fetchAPI('/sync/jobs', {
-                method: 'POST',
-                body: JSON.stringify({
-                    area: typeof entry === 'string' ? entry : entry?.area || getActiveArea()
-                })
+            const completed = await GatiqBackend.syncArea({
+                fetchAPI,
+                waitForBackendJob,
+                area: typeof entry === 'string' ? entry : entry?.area || getActiveArea(),
+                onSyncing: () => {
+                    if (syncStatusText) syncStatusText.textContent = 'Syncing queued changes...';
+                }
             });
-            const completed = await waitForBackendJob(accepted.job_id, 45000);
             console.log('Successfully completed backend sync job', completed);
             markSyncNow();
         } catch (err) {
@@ -3479,138 +3412,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getQuickViewerReport() {
-        return getVisiblePDFHistory().find(item => item.id === quickViewerReportId) || null;
+        return GatiqQuickViewer.getQuickViewerReport({
+            reportId: quickViewerReportId,
+            reports: getVisiblePDFHistory()
+        });
     }
 
     function getReportConfig(area) {
-        return DeploymentConfig[sanitizeArea(area)] || DeploymentConfig[DEFAULT_AREA];
+        return GatiqQuickViewer.getReportConfig({
+            area,
+            deploymentConfig: DeploymentConfig,
+            sanitizeArea,
+            defaultArea: DEFAULT_AREA
+        });
     }
 
     function getFacilityLabel(area) {
-        const labelMap = {
-            'Residential Society': 'Society Name',
-            'Factories & Manufacturing Plants': 'Factory Name',
-            'Warehouses & Logistics Hubs': 'Warehouse Name',
-            'Commercial Tech Parks & Business Centers': 'Company / Building Name',
-            'Educational Institutions': 'Institution Name',
-            'Hotels & Resorts': 'Hotel / Resort Name'
-        };
-        return labelMap[sanitizeArea(area)] || 'Facility / Site Name';
+        return GatiqDomain.getFacilityLabel(area, sanitizeArea);
     }
 
     function formatViewerTimestamp(value) {
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return 'Unknown';
-        return d.toLocaleString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        return GatiqQuickViewer.formatViewerTimestamp(value);
     }
 
     function getViewerReportPeriod(report) {
-        const dates = (report.entries || []).map(entry => entry.date).filter(Boolean);
-        if (!dates.length) return 'No date range';
-        const unique = Array.from(new Set(dates));
-        return unique.length === 1 ? unique[0] : `${unique[0]} to ${unique[unique.length - 1]}`;
+        return GatiqQuickViewer.getViewerReportPeriod(report);
     }
 
     function getViewerCellText(entry, column) {
-        switch (column.id) {
-            case 'srNo':
-                return String(entry.srNo || '-');
-            case 'srGate':
-                return `${entry.srNo || '-'} ${entry.gateNo || '-'}`;
-            case 'gateNo':
-                return entry.gateNo || '-';
-            case 'vehicleNo':
-                return entry.vehicleNo || '-';
-            case 'date':
-                return entry.date || '-';
-            case 'entryExit':
-                return entry.entryExit || '-';
-            case 'status':
-                return entry.status || entry.entryExit || '-';
-            case 'time':
-                return entry.time || '-';
-            case 'entryExitTime':
-                return `${entry.date || '-'} ${entry.time || '-'}`;
-            case 'tat':
-                return entry.tat || '-';
-            case 'vehicleType':
-                return entry.vehicleType || '-';
-            case 'vehicleCapacity':
-                return entry.vehicleCapacity || '-';
-            case 'consignmentNo':
-                return entry.consignmentNo || '-';
-            case 'dockNo':
-                return entry.dockNo || '-';
-            case 'driverInfo':
-                return `${entry.driverName || '-'} ${entry.driverPhone || '-'}`;
-            case 'purpose':
-                return entry.purpose || '-';
-            case 'tagging':
-                return entry.tagging || '-';
-            default:
-                return entry[column.id] || '-';
-        }
+        return GatiqQuickViewer.getViewerCellText(entry, column);
     }
 
     function highlightViewerText(value, query, tracker) {
-        const text = String(value || '-');
-        if (!query) return escapeHtml(text);
-        const pattern = new RegExp(escapeRegExp(query), 'ig');
-        let lastIndex = 0;
-        let html = '';
-        let matched = false;
-        text.replace(pattern, (match, offset) => {
-            matched = true;
-            html += escapeHtml(text.slice(lastIndex, offset));
-            html += `<mark class="quick-viewer-highlight" data-match-index="${tracker.count}">${escapeHtml(match)}</mark>`;
-            tracker.count += 1;
-            lastIndex = offset + match.length;
-            return match;
+        return GatiqQuickViewer.highlightViewerText({
+            value,
+            query,
+            tracker,
+            escapeHtml
         });
-        if (!matched) return escapeHtml(text);
-        html += escapeHtml(text.slice(lastIndex));
-        return html;
     }
 
     function getQuickViewerChipTone(value) {
-        const text = normalizeText(value);
-        if (text.includes('entry') || text.includes('inside') || text.includes('docked')) return 'entry';
-        if (text.includes('exit') || text.includes('out')) return 'exit';
-        return 'neutral';
+        return GatiqQuickViewer.getQuickViewerChipTone({
+            value,
+            normalizeText
+        });
     }
 
     function renderViewerCell(entry, column, query, tracker) {
-        if (column.id === 'srGate') {
-            return `<strong>${highlightViewerText(entry.srNo || '-', query, tracker)}</strong><br><span>${highlightViewerText(entry.gateNo || '-', query, tracker)}</span>`;
-        }
-        if (column.id === 'entryExit' || column.id === 'status') {
-            const chipText = getViewerCellText(entry, column);
-            return `<span class="quick-viewer-chip ${getQuickViewerChipTone(chipText)}">${highlightViewerText(chipText, query, tracker)}</span>`;
-        }
-        if (column.id === 'entryExitTime') {
-            return `${highlightViewerText(entry.date || '-', query, tracker)}<br><span>${highlightViewerText(entry.time || '-', query, tracker)}</span>`;
-        }
-        if (column.id === 'driverInfo') {
-            return `${highlightViewerText(entry.driverName || '-', query, tracker)}<br><span>${highlightViewerText(entry.driverPhone || '-', query, tracker)}</span>`;
-        }
-        return highlightViewerText(getViewerCellText(entry, column), query, tracker);
+        return GatiqQuickViewer.renderViewerCell({
+            entry,
+            column,
+            query,
+            tracker,
+            normalizeText,
+            escapeHtml
+        });
     }
 
     function updateQuickViewerZoomUI() {
-        if (quickViewerPaperShell) {
-            quickViewerPaperShell.style.transform = `scale(${quickViewerZoom})`;
-        }
-        if (quickViewerZoomLabel) {
-            quickViewerZoomLabel.textContent = `${Math.round(quickViewerZoom * 100)}%`;
-        }
-        if (btnQuickViewerZoomOut) btnQuickViewerZoomOut.disabled = quickViewerZoom <= QUICK_VIEWER_MIN_ZOOM;
-        if (btnQuickViewerZoomIn) btnQuickViewerZoomIn.disabled = quickViewerZoom >= QUICK_VIEWER_MAX_ZOOM;
+        GatiqQuickViewer.updateQuickViewerZoomUI({
+            paperShell: quickViewerPaperShell,
+            zoomLabel: quickViewerZoomLabel,
+            zoom: quickViewerZoom,
+            minZoom: QUICK_VIEWER_MIN_ZOOM,
+            maxZoom: QUICK_VIEWER_MAX_ZOOM,
+            btnZoomOut: btnQuickViewerZoomOut,
+            btnZoomIn: btnQuickViewerZoomIn
+        });
     }
 
     function setQuickViewerZoom(nextZoom) {
@@ -3619,111 +3488,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncQuickViewerMatchUI(shouldScroll = false) {
-        const matches = quickViewerContent ? Array.from(quickViewerContent.querySelectorAll('.quick-viewer-highlight')) : [];
-        quickViewerMatchCount = matches.length;
-        if (!matches.length) {
-            quickViewerMatchIndex = 0;
-            if (quickViewerMatchStatus) {
-                quickViewerMatchStatus.textContent = quickViewerSearchTerm ? '0 matches' : 'No search';
-            }
-            if (quickViewerSearchEmpty) {
-                quickViewerSearchEmpty.hidden = !quickViewerSearchTerm;
-                if (quickViewerSearchTerm) {
-                    quickViewerSearchEmpty.textContent = `No matches found for "${quickViewerSearchTerm}".`;
-                }
-            }
-            if (btnQuickViewerPrev) btnQuickViewerPrev.disabled = true;
-            if (btnQuickViewerNext) btnQuickViewerNext.disabled = true;
-            return;
-        }
-
-        quickViewerMatchIndex = clamp(quickViewerMatchIndex, 0, matches.length - 1);
-        matches.forEach(match => match.classList.remove('active'));
-        const activeMatch = matches[quickViewerMatchIndex];
-        activeMatch?.classList.add('active');
-        if (quickViewerMatchStatus) {
-            quickViewerMatchStatus.textContent = `${quickViewerMatchIndex + 1} / ${matches.length} matches`;
-        }
-        if (quickViewerSearchEmpty) quickViewerSearchEmpty.hidden = true;
-        if (btnQuickViewerPrev) btnQuickViewerPrev.disabled = matches.length < 2;
-        if (btnQuickViewerNext) btnQuickViewerNext.disabled = matches.length < 2;
-        if (shouldScroll && activeMatch) {
-            activeMatch.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        }
+        const nextState = GatiqQuickViewer.syncQuickViewerMatchUI({
+            contentEl: quickViewerContent,
+            searchTerm: quickViewerSearchTerm,
+            matchIndex: quickViewerMatchIndex,
+            matchStatusEl: quickViewerMatchStatus,
+            searchEmptyEl: quickViewerSearchEmpty,
+            btnPrev: btnQuickViewerPrev,
+            btnNext: btnQuickViewerNext,
+            shouldScroll
+        });
+        quickViewerMatchCount = nextState.matchCount;
+        quickViewerMatchIndex = nextState.matchIndex;
     }
 
     function renderQuickViewer(shouldScrollToMatch = false) {
         const report = getQuickViewerReport();
         if (!report || !quickViewerContent) return;
-
-        const query = quickViewerSearchTerm.trim();
-        const tracker = { count: 0 };
-        const config = getReportConfig(report.area || DEFAULT_AREA);
-        const entries = Array.isArray(report.entries) ? report.entries : [];
-        const title = report.societyName || report.area || 'Vehicle Entry Audit Report';
-        const subtitle = `${sanitizeArea(report.area || DEFAULT_AREA)} | ${report.gateId || 'Gate 1'} | ${entries.length} entries`;
-        const rows = entries.length
-            ? entries.map(entry => `
-                <tr>
-                    ${config.columns.map(column => `<td>${renderViewerCell(entry, column, query, tracker)}</td>`).join('')}
-                </tr>
-            `).join('')
-            : `<tr class="quick-viewer-empty-row"><td colspan="${config.columns.length}">No entries recorded for this report.</td></tr>`;
-
-        const metadata = [
-            { label: getFacilityLabel(report.area), value: report.societyName || 'N/A' },
-            { label: 'Deployment Area', value: sanitizeArea(report.area || DEFAULT_AREA) },
-            { label: 'Gate ID', value: report.gateId || 'Gate 1' },
-            { label: 'Generated On', value: formatViewerTimestamp(report.generatedAt) },
-            { label: 'Record Period', value: getViewerReportPeriod(report) },
-            { label: 'Entries Logged', value: String(report.totalEntries || entries.length || 0) },
-            { label: 'Search Scope', value: query ? `Filtered for "${query}"` : 'Full report content' },
-            { label: 'Retention', value: 'Internal Use Only' }
-        ];
-
-        if (quickViewerTitle) quickViewerTitle.textContent = title;
-        if (quickViewerSubtitle) quickViewerSubtitle.textContent = subtitle;
-        if (quickViewerSearch) quickViewerSearch.value = quickViewerSearchTerm;
-
-        quickViewerContent.innerHTML = `
-            <div class="quick-viewer-report-header">
-                <div class="quick-viewer-brand">
-                    <img src="${escapeHtml(BRAND_LOGO_DARK)}" alt="GATIQ Logo" class="quick-viewer-brand-mark">
-                    <div class="quick-viewer-brand-copy">
-                        <h4>GATIQ Vehicle Entry Audit Log</h4>
-                        <p>Abiliqt Technologies Pvt. Ltd. secure report preview</p>
-                    </div>
-                </div>
-                <div class="quick-viewer-stamp">
-                    <div class="quick-viewer-stamp-title">Confidential</div>
-                    <div class="quick-viewer-stamp-sub">${escapeHtml(subtitle)}</div>
-                </div>
-            </div>
-            <div class="quick-viewer-meta-grid">
-                ${metadata.map(item => `
-                    <div class="quick-viewer-meta-card">
-                        <div class="quick-viewer-meta-label">${escapeHtml(item.label)}</div>
-                        <div class="quick-viewer-meta-value">${highlightViewerText(item.value, query, tracker)}</div>
-                    </div>
-                `).join('')}
-            </div>
-            <div class="quick-viewer-table-wrap">
-                <table class="quick-viewer-table">
-                    <thead>
-                        <tr>
-                            ${config.columns.map(column => `<th>${escapeHtml(column.label)}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>
-            <div class="quick-viewer-note">
-                <span>Search highlights visible report values and helps jump between matching rows quickly.</span>
-                <span>Use Download for the real PDF output.</span>
-            </div>
-        `;
-
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        GatiqQuickViewer.renderQuickViewer({
+            report,
+            searchTerm: quickViewerSearchTerm,
+            defaultArea: DEFAULT_AREA,
+            brandLogoDark: BRAND_LOGO_DARK,
+            deploymentConfig: DeploymentConfig,
+            sanitizeArea,
+            normalizeText,
+            getFacilityLabel,
+            escapeHtml,
+            refs: {
+                title: quickViewerTitle,
+                subtitle: quickViewerSubtitle,
+                search: quickViewerSearch,
+                content: quickViewerContent
+            }
+        });
         syncQuickViewerMatchUI(shouldScrollToMatch);
         updateQuickViewerZoomUI();
     }
@@ -3842,66 +3640,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getReportPageCount(report) {
-        const entryCount = Array.isArray(report?.entries)
-            ? report.entries.length
-            : Number(report?.totalEntries) || 0;
-        if (entryCount <= 0) return 1;
-        const area = sanitizeArea(report?.area || DEFAULT_AREA);
-        const rowsPerPage = area === 'Warehouses & Logistics Hubs' ? 34 : 26;
-        return Math.max(1, Math.ceil(entryCount / rowsPerPage));
+        return GatiqDomain.getReportPageCount(report, sanitizeArea, DEFAULT_AREA);
     }
 
     function buildMonthlyHistory(list) {
-        const monthlyMap = new Map();
-
-        (Array.isArray(list) ? list : []).forEach(rawReport => {
-            if (!rawReport || typeof rawReport !== 'object') return;
-            const report = {
-                ...rawReport,
-                area: sanitizeArea(rawReport.area || DEFAULT_AREA),
-                societyName: rawReport.societyName || 'N/A',
-                gateId: rawReport.gateId || 'Gate 1',
-                generatedAt: rawReport.generatedAt || new Date().toISOString(),
-                entries: Array.isArray(rawReport.entries) ? rawReport.entries : []
-            };
-            const monthStamp = getReportMonthStamp(report);
-            const reportKey = monthStamp;
-
-            if (!monthlyMap.has(reportKey)) {
-                monthlyMap.set(reportKey, {
-                    ...report,
-                    id: report.id || `${monthStamp}_${Math.random().toString(36).slice(2, 8)}`,
-                    totalEntries: report.entries.length,
-                    pageCount: Number(report.pageCount) || getReportPageCount(report),
-                    entries: report.entries.map((entry, index) => ({
-                        ...entry,
-                        srNo: index + 1
-                    }))
-                });
-                return;
-            }
-
-            const existing = monthlyMap.get(reportKey);
-            const existingTs = new Date(existing.generatedAt).getTime();
-            const nextTs = new Date(report.generatedAt).getTime();
-            if (!Number.isNaN(existingTs) && (Number.isNaN(nextTs) || existingTs >= nextTs)) return;
-
-            monthlyMap.set(reportKey, {
-                ...existing,
-                ...report,
-                id: existing.id,
-                totalEntries: report.entries.length,
-                pageCount: Number(report.pageCount) || getReportPageCount(report),
-                entries: report.entries.map((entry, index) => ({
-                    ...entry,
-                    srNo: index + 1
-                }))
-            });
+        return GatiqDomain.buildMonthlyHistory({
+            list,
+            sanitizeArea,
+            defaultArea: DEFAULT_AREA
         });
-
-        return Array.from(monthlyMap.values())
-            .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime())
-            .slice(0, 60);
     }
 
     let localPDFHistory = []; // Cache
@@ -3917,10 +3664,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function getVisiblePDFHistoryAsync() {
-        const policy = getAccessPolicy();
         const history = await getPDFHistoryAsync();
-        if (policy.isSuperAdmin) return history;
-        return history.filter(report => sanitizeArea(report.area || DEFAULT_AREA) === policy.assignedArea);
+        return GatiqDomain.getVisiblePDFHistory({
+            history,
+            policy: getAccessPolicy(),
+            sanitizeArea,
+            defaultArea: DEFAULT_AREA
+        });
     }
 
     async function fetchPDFHistoryFromAPI(area) {
@@ -3998,9 +3748,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getReportMonthLabel(report) {
-        const d = new Date(report.generatedAt);
-        if (Number.isNaN(d.getTime())) return 'Unknown Month';
-        return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        return GatiqDomain.getReportMonthLabel(report);
     }
 
     async function openQuickAccessReport(reportId) {

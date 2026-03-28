@@ -24,10 +24,15 @@ def save_report_metadata(report: schemas.PDFReportSchema, db: Session = Depends(
     return ensure_pdf_report(
         db,
         report_id=report.id,
+        site_id=report.site_id,
+        gate_id=report.gate_id,
+        device_id=report.device_id,
+        user_id=report.user_id,
         name=report.name,
         area=report.area,
         timestamp=report.timestamp,
         entry_count=report.entry_count,
+        gate_no="Main Gate",
     )
 
 

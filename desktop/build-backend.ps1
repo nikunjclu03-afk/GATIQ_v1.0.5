@@ -162,4 +162,8 @@ if (-not $cv2pyd) {
 }
 
 Write-Host "  cv2 native binary: $($cv2pyd.FullName)"
+& (Join-Path $PSScriptRoot 'validate-backend-build.ps1') -BundleRoot $bundleRoot -SkipSourceSmoke
+if ($LASTEXITCODE -ne 0) {
+    throw 'Backend build validation failed after PyInstaller packaging.'
+}
 Write-Host "Backend build finished successfully!"

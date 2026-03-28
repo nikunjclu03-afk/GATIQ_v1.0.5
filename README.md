@@ -43,6 +43,7 @@ Download the latest Windows installer from the [GitHub Releases](https://github.
 npm install
 
 # Build the project
+npm run validate:code
 npm run build:brand
 npm run build:backend
 npm run dist
@@ -60,6 +61,15 @@ npm run dev
 - **FastAPI Backend**: `GATIQ API/app/main.py`
 - **Database Schema**: `GATIQ API/app/models.py`
 - **Build Scripts**: `desktop/build-backend.ps1`
+- **Validation Scripts**: `desktop/validate-backend-build.ps1`, `desktop/validate-release.ps1`
+
+### Build Validation
+```powershell
+# Source and packaging validation
+npm run validate:code
+npm run validate:backend
+npm run dist:validate
+```
 
 ## 🛡️ Security & Privacy
 - **Offline First**: All AI processing and log storage happen locally on your machine.

@@ -15,8 +15,12 @@
     "start": "set ELECTRON_RUN_AS_NODE=&& .\\node_modules\\electron\\dist\\electron.exe .",
     "build:brand": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' '.\\desktop\\generate_brand_assets.py'\"",
     "build:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/build-backend.ps1",
+    "validate:code": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' -m compileall '.\\GATIQ API\\app'; node --check '.\\js\\domain-service.js'; node --check '.\\js\\backend-orchestrator.js'; node --check '.\\js\\auth-service.js'; node --check '.\\js\\quick-viewer-service.js'; node --check '.\\js\\plate-scanner.js'; node --check '.\\js\\app.js'\"",
+    "validate:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/validate-backend-build.ps1",
+    "validate:release": "powershell -ExecutionPolicy Bypass -File ./desktop/validate-release.ps1",
     "dist": "npm run build:brand && npm run build:backend && electron-builder --win nsis",
-    "dist:dir": "npm run build:brand && npm run build:backend && electron-builder --win dir"
+    "dist:dir": "npm run build:brand && npm run build:backend && electron-builder --win dir",
+    "dist:validate": "npm run validate:code && npm run build:brand && npm run build:backend && electron-builder --win dir && npm run validate:release"
   },
   "build": {
     "appId": "com.abiliqt.gatiq.desktop",
