@@ -47,3 +47,4 @@ release/
 dist/
 build/pyinstaller/
 build/pyinstaller-spec/
+build/smoke-data/
