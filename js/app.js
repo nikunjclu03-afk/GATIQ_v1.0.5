@@ -269,9 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8001';
     const DEFAULT_BACKEND_API_KEY = '7t#K9!vP$2wL5*G8^m1&Q4+Z7xR0_B3#';
     const MIN_STARTUP_SPLASH_MS = 80;
-    const PANEL_CLOSE_MS = 200;
-    const MODAL_CLOSE_MS = 220;
-    const BUTTON_POP_MS = 420;
     const startupTimestamp = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const QUICK_VIEWER_MIN_ZOOM = 0.7;
     const QUICK_VIEWER_MAX_ZOOM = 1.6;
@@ -1516,7 +1513,7 @@ document.addEventListener('DOMContentLoaded', () => {
             button.classList.remove('ios-tap-pop');
             void button.offsetWidth;
             button.classList.add('ios-tap-pop');
-            window.setTimeout(() => button.classList.remove('ios-tap-pop'), BUTTON_POP_MS);
+            window.setTimeout(() => button.classList.remove('ios-tap-pop'), 620);
         });
     }
 
@@ -1566,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!modalOverlay.classList.contains('open')) return;
         modalOverlay.classList.remove('open');
         modalOverlay.classList.add('closing');
-        window.setTimeout(() => modalOverlay.classList.remove('closing'), MODAL_CLOSE_MS);
+        window.setTimeout(() => modalOverlay.classList.remove('closing'), 260);
     }
 
     function applyFloatingPanelOrigin(panel, trigger) {
@@ -1603,7 +1600,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!panel || !panel.classList.contains('open')) return;
         panel.classList.remove('open');
         panel.classList.add('closing');
-        window.setTimeout(() => panel.classList.remove('closing'), PANEL_CLOSE_MS);
+        window.setTimeout(() => panel.classList.remove('closing'), 240);
     }
 
     function hasActiveAnchoredModal() {

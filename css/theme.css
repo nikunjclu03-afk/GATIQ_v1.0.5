@@ -45,12 +45,6 @@
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-  --motion-snap: 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  --motion-panel: 220ms cubic-bezier(0.18, 0.9, 0.22, 1);
-  --motion-modal: 260ms cubic-bezier(0.16, 1, 0.3, 1);
-  --motion-bounce: 420ms cubic-bezier(0.22, 1, 0.36, 1);
-  --press-scale: 0.965;
-  --hover-lift: -2px;
 
   --font-sans: 'Samsung Sans', 'SamsungOne', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -354,7 +348,6 @@
 html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -364,8 +357,6 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
-  overscroll-behavior-y: none;
-  -webkit-tap-highlight-color: transparent;
 }
 
 body.startup-loading {
@@ -1068,21 +1059,18 @@ body.auth-open {
   opacity: 0;
   visibility: hidden;
   transform-origin: var(--panel-origin-x, 100%) var(--panel-origin-y, 0%);
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform: translateZ(0);
 }
 
 .header-profile-menu.open {
   opacity: 1;
   visibility: visible;
-  animation: anchoredPanelReveal var(--motion-panel) both;
+  animation: anchoredPanelReveal 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .header-profile-menu.closing {
   opacity: 1;
   visibility: visible;
-  animation: anchoredPanelHide 200ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation: anchoredPanelHide 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .profile-menu-item,
@@ -1453,19 +1441,16 @@ body.auth-open {
   display: none;
   z-index: 120;
   transform-origin: var(--panel-origin-x, 100%) var(--panel-origin-y, 0%);
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform: translateZ(0);
 }
 
 .header-notification-panel.open {
   display: block;
-  animation: anchoredPanelReveal var(--motion-panel) both;
+  animation: anchoredPanelReveal 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .header-notification-panel.closing {
   display: block;
-  animation: anchoredPanelHide 200ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation: anchoredPanelHide 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .header-notification-head {
@@ -1808,9 +1793,8 @@ body.auth-open {
   backdrop-filter: blur(2px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--motion-snap), backdrop-filter var(--motion-snap);
+  transition: var(--transition-base);
   z-index: 190;
-  will-change: opacity;
 }
 
 .quick-drawer-backdrop.open {
@@ -1828,14 +1812,12 @@ body.auth-open {
   border: 2px solid var(--border-color);
   border-radius: 22px;
   box-shadow: var(--shadow-lg);
-  transform: translateX(106%) translateZ(0);
-  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(106%);
+  transition: transform 0.32s ease;
   z-index: 200;
   display: flex;
   flex-direction: column;
   padding: 0.7rem;
-  will-change: transform;
-  backface-visibility: hidden;
 }
 
 .quick-drawer.open {
@@ -2881,10 +2863,6 @@ body.auth-open {
   max-height: 405px;
   overflow-y: auto;
   padding-right: 0.25rem;
-  scroll-behavior: smooth;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
 }
 
 .camera-right-split {
@@ -4303,12 +4281,12 @@ body.auth-open .system-version {
     transform: translateY(0) scale(1);
   }
 
-  20% {
-    transform: translateY(1px) scale(var(--press-scale));
+  22% {
+    transform: translateY(1px) scale(0.92);
   }
 
-  52% {
-    transform: translateY(-2px) scale(1.018);
+  58% {
+    transform: translateY(-1px) scale(1.045);
   }
 
   100% {
@@ -4341,14 +4319,14 @@ body.auth-open .system-version {
     opacity: 0;
     transform:
       translate(var(--modal-start-x, 0), var(--modal-start-y, 0))
-      scale(var(--modal-start-scale, 0.88));
+      scale(var(--modal-start-scale, 0.24));
   }
 
-  64% {
+  58% {
     opacity: 1;
     transform:
-      translate(calc(var(--modal-start-x, 0) * -0.035), calc(var(--modal-start-y, 0) * -0.035))
-      scale(1.01);
+      translate(calc(var(--modal-start-x, 0) * -0.06), calc(var(--modal-start-y, 0) * -0.06))
+      scale(1.018);
   }
 
   100% {
@@ -4374,7 +4352,7 @@ body.auth-open .system-version {
     opacity: 0;
     transform:
       translate(var(--modal-start-x, 0), var(--modal-start-y, 0))
-      scale(var(--modal-start-scale, 0.9));
+      scale(var(--modal-start-scale, 0.24));
   }
 }
 
@@ -4383,7 +4361,7 @@ body.auth-open .system-version {
     opacity: 0;
     transform:
       translate(var(--panel-start-x, 0), var(--panel-start-y, -8px))
-      scale(var(--panel-start-scale, 0.95));
+      scale(var(--panel-start-scale, 0.92));
   }
 
   to {
@@ -4407,39 +4385,7 @@ body.auth-open .system-version {
     opacity: 0;
     transform:
       translate(var(--panel-start-x, 0), var(--panel-start-y, -8px))
-      scale(var(--panel-start-scale, 0.97));
-  }
-}
-
-.panel,
-.panel-header,
-.panel-body,
-.quick-access-panel,
-.camera-area,
-.camera-feed,
-.upload-label,
-.btn-export,
-.log-table tbody tr,
-.log-table .btn-tiny,
-.header-sync-card,
-.header-status-pill,
-.profile-trigger {
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+      scale(var(--panel-start-scale, 0.92));
   }
 }
 
@@ -4462,7 +4408,7 @@ body.auth-open .system-version {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: var(--motion-snap);
+  transition: var(--transition-base);
   flex: 1;
   position: relative;
   overflow: hidden;
@@ -4485,14 +4431,13 @@ button,
   transform-origin: center;
   backface-visibility: hidden;
   will-change: transform, box-shadow, filter;
-  touch-action: manipulation;
   transition:
-    transform var(--motion-snap),
-    box-shadow var(--motion-snap),
-    filter var(--motion-snap),
-    background-color var(--motion-snap),
-    border-color var(--motion-snap),
-    opacity 120ms ease;
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.28s ease,
+    background-color 0.28s ease,
+    border-color 0.28s ease,
+    opacity 0.2s ease;
 }
 
 button.ios-pressing,
@@ -4508,9 +4453,9 @@ button.ios-pressing,
 .profile-menu-item.ios-pressing,
 .theme-toggle.ios-pressing,
 .header-link-btn.ios-pressing {
-  transform: translateY(1px) scale(var(--press-scale)) !important;
-  filter: saturate(1.03);
-  box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.1) !important;
+  transform: translateY(1px) scale(0.92) !important;
+  filter: saturate(1.05);
+  box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.12) !important;
 }
 
 button.ios-tap-pop,
@@ -4526,7 +4471,7 @@ button.ios-tap-pop,
 .profile-menu-item.ios-tap-pop,
 .theme-toggle.ios-tap-pop,
 .header-link-btn.ios-tap-pop {
-  animation: iosButtonPop var(--motion-bounce);
+  animation: iosButtonPop 620ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 button.ios-tap-pop::before,
@@ -4559,7 +4504,7 @@ button.ios-tap-pop::before,
 }
 
 .btn:hover {
-  transform: translateY(var(--hover-lift));
+  transform: translateY(-1px);
 }
 
 .btn:active {
@@ -4790,9 +4735,6 @@ button.ios-tap-pop::before,
   max-height: 680px;
   /* Fits 14 rows + header before scrolling */
   overscroll-behavior: contain;
-  scroll-behavior: smooth;
-  scrollbar-gutter: stable both-edges;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(99, 102, 241, 0.25) transparent;
 }
@@ -4955,7 +4897,7 @@ button.ios-tap-pop::before,
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: var(--motion-snap);
+  transition: var(--transition-base);
   color: white;
 }
 
@@ -4968,7 +4910,7 @@ button.ios-tap-pop::before,
 }
 
 .btn-export:hover {
-  transform: translateY(var(--hover-lift));
+  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
@@ -5040,12 +4982,12 @@ button.ios-tap-pop::before,
 
 .modal-overlay.open {
   display: flex;
-  animation: modalOverlayReveal var(--motion-snap) ease both;
+  animation: modalOverlayReveal 0.22s ease both;
 }
 
 .modal-overlay.closing {
   display: flex;
-  animation: modalOverlayHide 220ms ease both;
+  animation: modalOverlayHide 0.26s ease both;
 }
 
 .modal {
@@ -5057,17 +4999,14 @@ button.ios-tap-pop::before,
   max-width: 95vw;
   box-shadow: var(--shadow-lg);
   transform-origin: var(--modal-origin-x, 50%) var(--modal-origin-y, 50%);
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform: translateZ(0);
 }
 
 .modal-overlay.open .modal {
-  animation: modalFromTrigger var(--motion-modal) both;
+  animation: modalFromTrigger 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .modal-overlay.closing .modal {
-  animation: modalToTrigger 220ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation: modalToTrigger 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .profile-modal {
@@ -5075,9 +5014,6 @@ button.ios-tap-pop::before,
   max-height: min(82vh, 760px);
   overflow-y: auto;
   padding: 1.1rem 1.25rem 1rem;
-  scroll-behavior: smooth;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 .settings-modal {
@@ -5085,9 +5021,6 @@ button.ios-tap-pop::before,
   max-height: min(82vh, 780px);
   overflow-y: auto;
   padding: 1.1rem 1.25rem 1rem;
-  scroll-behavior: smooth;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 .settings-grid {
