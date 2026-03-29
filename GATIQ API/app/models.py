@@ -179,6 +179,15 @@ class ScanResult(Base):
     vehicle_type = Column(String, nullable=True)
     raw_payload_json = Column(Text, nullable=True)
     created_log_id = Column(Integer, nullable=True, index=True)
+    # Phase 1: Confidence & quality fields
+    detector_confidence = Column(String, nullable=True)
+    ocr_confidence = Column(String, nullable=True)
+    quality_level = Column(String, nullable=True)  # good, fair, poor
+    quality_hints_json = Column(Text, nullable=True)  # JSON array: ["blurred","low_light",...]
+    best_frame_index = Column(Integer, nullable=True)
+    failure_reason = Column(String, nullable=True)
+    review_required = Column(Boolean, default=False)
+    review_id = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
@@ -248,3 +257,145 @@ class SyncEvent(Base):
     event_type = Column(String, index=True)
     payload_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
+# ─── Phase 1: Gate Ops Core Models ───────────────────────────────────
+
+class ScanReview(Base):
+    __tablename__ = "scan_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scan_job_id = Column(String, index=True)
+    scan_result_id = Column(Integer, nullable=True, index=True)
+    site_id = Column(Integer, nullable=True, index=True)
+    gate_id = Column(Integer, nullable=True, index=True)
+    device_id = Column(Integer, nullable=True, index=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    detected_plate = Column(String, index=True)
+    corrected_plate = Column(String, nullable=True, index=True)
+    direction = Column(String, nullable=True)
+    tagging = Column(String, nullable=True)
+    vehicle_type = Column(String, nullable=True)
+    purpose = Column(String, nullable=True)
+    area = Column(String, nullable=True, index=True)
+    gate_no = Column(String, nullable=True)
+    # Confidence / quality
+    detector_confidence = Column(String, nullable=True)
+    ocr_confidence = Column(String, nullable=True)
+    quality_level = Column(String, nullable=True)
+    quality_hints_json = Column(Text, nullable=True)
+    failure_reason = Column(String, nullable=True)
+    # Review state: pending_review | confirmed | rejected | unreadable
+    status = Column(String, default="pending_review", index=True)
+    reviewed_by = Column(Integer, nullable=True, index=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    review_note = Column(Text, nullable=True)
+    created_log_id = Column(Integer, nullable=True, index=True)
+    # Duplicate detection flags
+    duplicate_flags_json = Column(Text, nullable=True)
+    # Extra scan job fields
+    vehicle_capacity = Column(String, nullable=True)
+    dock_no = Column(String, nullable=True)
+    consignment_no = Column(String, nullable=True)
+    driver_name = Column(String, nullable=True)
+    driver_phone = Column(String, nullable=True)
+    status_label = Column(String, nullable=True)
+    operator_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
+class CameraHealth(Base):
+    __tablename__ = "camera_health"
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_id = Column(String, unique=True, index=True)  # e.g. "rtsp://..." or "webcam-0"
+    source_type = Column(String, default="rtsp")  # rtsp | webcam
+    label = Column(String, nullable=True)
+    site_id = Column(Integer, nullable=True, index=True)
+    gate_id = Column(Integer, nullable=True, index=True)
+    # Health snapshot
+    is_online = Column(Boolean, default=False)
+    last_success_at = Column(DateTime, nullable=True)
+    last_frame_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    restart_supported = Column(Boolean, default=True)
+    consecutive_failures = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class VehicleVisit(Base):
+    __tablename__ = "vehicle_visits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, nullable=True, index=True)
+    normalized_plate = Column(String, index=True)
+    entry_log_id = Column(Integer, nullable=True, index=True)
+    exit_log_id = Column(Integer, nullable=True, index=True)
+    entry_at = Column(DateTime, nullable=True, index=True)
+    exit_at = Column(DateTime, nullable=True)
+    is_open = Column(Boolean, default=True, index=True)
+    stay_duration_minutes = Column(Integer, nullable=True)
+    area = Column(String, nullable=True, index=True)
+    gate_no = Column(String, nullable=True)
+    vehicle_type = Column(String, nullable=True)
+    tagging = Column(String, nullable=True)
+    source_type = Column(String, nullable=True)  # scan | manual
+    review_status = Column(String, nullable=True)  # confirmed | rejected | null
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_id = Column(String, index=True)
+    actor_name = Column(String, nullable=True)
+    action = Column(String, index=True) 
+    entity_type = Column(String, index=True) 
+    entity_id = Column(String, index=True)
+    old_values_json = Column(Text, nullable=True)
+    new_values_json = Column(Text, nullable=True)
+    reason = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
+class IncidentRecord(Base):
+    __tablename__ = "incident_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    log_id = Column(Integer, nullable=True, index=True)
+    review_id = Column(Integer, nullable=True, index=True)
+    reporter_id = Column(String, index=True)
+    severity_flag = Column(String, index=True)
+    note = Column(Text, nullable=True)
+    media_path = Column(String, nullable=True)
+    status = Column(String, default="open", index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    resolved_at = Column(DateTime, nullable=True)
+    resolver_id = Column(String, nullable=True)
+
+
+class WhitelistImportJob(Base):
+    __tablename__ = "whitelist_import_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String)
+    operator_id = Column(String, index=True)
+    status = Column(String, default="pending", index=True)
+    total_rows = Column(Integer, default=0)
+    success_count = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    error_details_json = Column(Text, nullable=True) 
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+
+class PlanEntitlement(Base):
+    __tablename__ = "plan_entitlements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plan_tier = Column(String, unique=True, index=True)
+    max_cameras = Column(Integer, default=1)
+    retention_days = Column(Integer, default=30)
+    features_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)

@@ -289,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return { baseUrl, apiKey };
     }
 
+    window.gatiqFetchAPI = fetchAPI;
     async function fetchAPI(endpoint, options = {}) {
         const { baseUrl, apiKey } = getBackendConfig();
         const url = `${baseUrl}${endpoint}`;
@@ -2941,6 +2942,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // ---- Toast ----
+    window.gatiqShowToast = showToast;
     function showToast(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;

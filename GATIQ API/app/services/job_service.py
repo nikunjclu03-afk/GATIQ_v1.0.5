@@ -11,7 +11,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
-from . import ai_runtime, log_service, report_service, sync_service
+from . import ai_runtime, log_service, report_service, review_service, sync_service
 from .event_service import list_job_events, record_event
 from .normalization_service import get_or_create_device, get_or_create_gate, get_or_create_site, get_or_create_user
 
@@ -463,59 +463,68 @@ def _process_scan_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
     if not scan_job:
         raise RuntimeError("Scan job metadata missing")
 
+    # ── Phase 1: Multi-frame for CCTV ──
     try:
         if scan_job.source == "webcam":
             response = ai_runtime.scan_base64_image(scan_job.image_base64 or "")
         else:
-            response = ai_runtime.scan_cctv_stream(scan_job.rtsp_url or "")
+            response = ai_runtime.scan_cctv_multi_frame(scan_job.rtsp_url or "")
     except HTTPException as exc:
         if exc.status_code == 503:
             ai_runtime.warmup_async()
             raise RetryableJobError(str(exc.detail)) from exc
         raise RuntimeError(str(exc.detail)) from exc
 
+    # ── Record camera health ──
+    if scan_job.source == "cctv" and scan_job.rtsp_url:
+        from .camera_service import record_camera_success
+        record_camera_success(db, scan_job.rtsp_url)
+
     seen = set()
+    review_ids: List[int] = []
     log_ids: List[int] = []
+    enriched_vehicles: List[Dict[str, Any]] = []
+
     for vehicle in response.vehicles:
         plate_number = (vehicle.plate_number or "").strip().upper()
-        if not plate_number or plate_number == "UNREADABLE" or plate_number in seen:
+        if not plate_number or plate_number in seen:
             continue
         seen.add(plate_number)
-        log_entry = schemas.VehicleLogCreate(
-            vehicle_no=plate_number,
-            vehicle_type=(vehicle.vehicle_type or scan_job.vehicle_type or "Car"),
-            gate_no=scan_job.gate_no or "Gate 1",
-            area=scan_job.area,
-            entry_exit=vehicle.direction,
-            purpose=scan_job.purpose,
-            tagging=vehicle.tagging or scan_job.tagging,
-            vehicle_capacity=scan_job.vehicle_capacity,
-            dock_no=scan_job.dock_no,
-            consignment_no=scan_job.consignment_no,
-            driver_name=scan_job.driver_name,
-            driver_phone=scan_job.driver_phone,
-            status=scan_job.status_label or vehicle.direction,
+
+        # Build enriched vehicle dict
+        enriched = _model_dump(vehicle)
+
+        # Create scan result with confidence data
+        scan_result = models.ScanResult(
+            scan_job_id=job.job_id,
             site_id=scan_job.site_id,
             gate_id=scan_job.gate_id,
-            device_id=scan_job.device_row_id,
-            user_id=scan_job.user_id,
+            detected_plate=plate_number,
+            direction=vehicle.direction,
+            tagging=vehicle.tagging,
+            vehicle_type=vehicle.vehicle_type,
+            raw_payload_json=_dumps(enriched),
+            detector_confidence=str(getattr(vehicle, 'detector_confidence', '') or ''),
+            ocr_confidence=str(getattr(vehicle, 'ocr_confidence', '') or ''),
+            quality_level=getattr(vehicle, 'quality_level', None),
+            quality_hints_json=_dumps(getattr(vehicle, 'quality_hints', None)),
+            failure_reason=getattr(vehicle, 'failure_reason', None),
         )
-        created_log = log_service.create_vehicle_log(log_entry, db)
-        log_ids.append(created_log.id)
-        db.add(
-            models.ScanResult(
-                scan_job_id=job.job_id,
-                site_id=scan_job.site_id,
-                gate_id=scan_job.gate_id,
-                detected_plate=plate_number,
-                direction=vehicle.direction,
-                tagging=vehicle.tagging,
-                vehicle_type=vehicle.vehicle_type,
-                raw_payload_json=_dumps(_model_dump(vehicle)),
-                created_log_id=created_log.id,
-            )
-        )
+        db.add(scan_result)
         db.commit()
+        db.refresh(scan_result)
+
+        # ── Phase 1: Create ScanReview instead of direct VehicleLog ──
+        if plate_number != "UNREADABLE":
+            review = review_service.create_review_from_scan(
+                db,
+                scan_job=scan_job,
+                scan_result=scan_result,
+                vehicle=enriched,
+            )
+            review_ids.append(review.id)
+
+        enriched_vehicles.append(enriched)
 
     record_event(
         db,
@@ -524,45 +533,27 @@ def _process_scan_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
         aggregate_id=job.job_id,
         job_id=job.job_id,
         correlation_id=job.correlation_id,
-        payload={"log_ids": log_ids, "vehicle_count": len(response.vehicles)},
+        payload={"review_ids": review_ids, "vehicle_count": len(response.vehicles)},
     )
-
-    report_job_ids: List[str] = []
-    if log_ids:
-        area_entries = db.query(models.VehicleLog).filter(models.VehicleLog.area == scan_job.area).count()
-        report_request = schemas.ReportJobCreate(
-            id=f"pdf_{int(time.time() * 1000)}_{uuid.uuid4().hex[:6]}",
-            site_id=scan_job.site_id,
-            gate_id=scan_job.gate_id,
-            device_id=scan_job.device_row_id,
-            user_id=scan_job.user_id,
-            name=scan_job.facility_name or scan_job.area or "GATIQ Report",
-            area=scan_job.area,
-            gate_no=scan_job.gate_no,
-            timestamp=_utcnow(),
-            entry_count=area_entries,
-            snapshot={"generated_by": "scan_job", "log_ids": log_ids},
-        )
-        report_response = enqueue_report_job(db, report_request)
-        report_job_ids.append(report_response.job_id)
 
     scan_job.detection_summary = _dumps(
         {
-            "vehicles": [_model_dump(vehicle) for vehicle in response.vehicles],
+            "vehicles": enriched_vehicles,
             "detection_time": response.detection_time,
             "provider": response.provider,
         }
     )
     scan_job.created_log_ids = _dumps({"log_ids": log_ids})
-    scan_job.report_job_ids = _dumps({"report_job_ids": report_job_ids})
+    scan_job.report_job_ids = _dumps({"report_job_ids": []})
     db.commit()
 
     return {
-        "vehicles": [_model_dump(vehicle) for vehicle in response.vehicles],
+        "vehicles": enriched_vehicles,
         "detection_time": response.detection_time,
         "provider": response.provider,
         "log_ids": log_ids,
-        "report_job_ids": report_job_ids,
+        "report_job_ids": [],
+        "review_ids": review_ids,
     }
 
 

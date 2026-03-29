@@ -88,6 +88,151 @@ def ensure_normalized_schema() -> None:
             if table_name not in existing_tables:
                 connection.execute(text(statement))
 
+        # ─── Phase 1: New tables ───
+        phase1_tables = {
+            "scan_reviews": """
+                CREATE TABLE IF NOT EXISTS scan_reviews (
+                    id INTEGER PRIMARY KEY,
+                    scan_job_id VARCHAR,
+                    scan_result_id INTEGER,
+                    site_id INTEGER,
+                    gate_id INTEGER,
+                    device_id INTEGER,
+                    user_id INTEGER,
+                    detected_plate VARCHAR,
+                    corrected_plate VARCHAR,
+                    direction VARCHAR,
+                    tagging VARCHAR,
+                    vehicle_type VARCHAR,
+                    purpose VARCHAR,
+                    area VARCHAR,
+                    gate_no VARCHAR,
+                    detector_confidence VARCHAR,
+                    ocr_confidence VARCHAR,
+                    quality_level VARCHAR,
+                    quality_hints_json TEXT,
+                    failure_reason VARCHAR,
+                    status VARCHAR DEFAULT 'pending_review',
+                    reviewed_by INTEGER,
+                    reviewed_at DATETIME,
+                    review_note TEXT,
+                    created_log_id INTEGER,
+                    duplicate_flags_json TEXT,
+                    vehicle_capacity VARCHAR,
+                    dock_no VARCHAR,
+                    consignment_no VARCHAR,
+                    driver_name VARCHAR,
+                    driver_phone VARCHAR,
+                    status_label VARCHAR,
+                    operator_name VARCHAR,
+                    created_at DATETIME
+                )
+            """,
+            "camera_health": """
+                CREATE TABLE IF NOT EXISTS camera_health (
+                    id INTEGER PRIMARY KEY,
+                    source_id VARCHAR UNIQUE,
+                    source_type VARCHAR DEFAULT 'rtsp',
+                    label VARCHAR,
+                    site_id INTEGER,
+                    gate_id INTEGER,
+                    is_online BOOLEAN DEFAULT 0,
+                    last_success_at DATETIME,
+                    last_frame_at DATETIME,
+                    last_error TEXT,
+                    restart_supported BOOLEAN DEFAULT 1,
+                    consecutive_failures INTEGER DEFAULT 0,
+                    created_at DATETIME,
+                    updated_at DATETIME
+                )
+            """,
+            "vehicle_visits": """
+                CREATE TABLE IF NOT EXISTS vehicle_visits (
+                    id INTEGER PRIMARY KEY,
+                    site_id INTEGER,
+                    normalized_plate VARCHAR,
+                    entry_log_id INTEGER,
+                    exit_log_id INTEGER,
+                    entry_at DATETIME,
+                    exit_at DATETIME,
+                    is_open BOOLEAN DEFAULT 1,
+                    stay_duration_minutes INTEGER,
+                    area VARCHAR,
+                    gate_no VARCHAR,
+                    vehicle_type VARCHAR,
+                    tagging VARCHAR,
+                    source_type VARCHAR,
+                    review_status VARCHAR,
+                    created_at DATETIME
+                )
+            """,
+        }
+
+        for table_name, statement in phase1_tables.items():
+            if table_name not in existing_tables:
+                connection.execute(text(statement))
+
+        # ─── Phase 2: Controls, Audit, Deployment ───
+        phase2_tables = {
+            "audit_events": """
+                CREATE TABLE IF NOT EXISTS audit_events (
+                    id INTEGER PRIMARY KEY,
+                    actor_id VARCHAR,
+                    actor_name VARCHAR,
+                    action VARCHAR,
+                    entity_type VARCHAR,
+                    entity_id VARCHAR,
+                    old_values_json TEXT,
+                    new_values_json TEXT,
+                    reason VARCHAR,
+                    created_at DATETIME
+                )
+            """,
+            "incident_records": """
+                CREATE TABLE IF NOT EXISTS incident_records (
+                    id INTEGER PRIMARY KEY,
+                    log_id INTEGER,
+                    review_id INTEGER,
+                    reporter_id VARCHAR,
+                    severity_flag VARCHAR,
+                    note TEXT,
+                    media_path VARCHAR,
+                    status VARCHAR DEFAULT 'open',
+                    created_at DATETIME,
+                    resolved_at DATETIME,
+                    resolver_id VARCHAR
+                )
+            """,
+            "whitelist_import_jobs": """
+                CREATE TABLE IF NOT EXISTS whitelist_import_jobs (
+                    id INTEGER PRIMARY KEY,
+                    filename VARCHAR,
+                    operator_id VARCHAR,
+                    status VARCHAR DEFAULT 'pending',
+                    total_rows INTEGER DEFAULT 0,
+                    success_count INTEGER DEFAULT 0,
+                    error_count INTEGER DEFAULT 0,
+                    error_details_json TEXT,
+                    created_at DATETIME,
+                    completed_at DATETIME
+                )
+            """,
+            "plan_entitlements": """
+                CREATE TABLE IF NOT EXISTS plan_entitlements (
+                    id INTEGER PRIMARY KEY,
+                    plan_tier VARCHAR UNIQUE,
+                    max_cameras INTEGER DEFAULT 1,
+                    retention_days INTEGER DEFAULT 30,
+                    features_json TEXT,
+                    created_at DATETIME
+                )
+            """
+        }
+
+        for table_name, statement in phase2_tables.items():
+            if table_name not in existing_tables:
+                connection.execute(text(statement))
+
         inspector = inspect(database.engine)
         alter_map = {
             "logs": [
@@ -118,6 +263,17 @@ def ensure_normalized_schema() -> None:
             "sync_runs": [
                 ("failed_count", "ALTER TABLE sync_runs ADD COLUMN failed_count INTEGER DEFAULT 0"),
                 ("last_error", "ALTER TABLE sync_runs ADD COLUMN last_error TEXT"),
+            ],
+            # Phase 1: new columns on scan_results
+            "scan_results": [
+                ("detector_confidence", "ALTER TABLE scan_results ADD COLUMN detector_confidence VARCHAR"),
+                ("ocr_confidence", "ALTER TABLE scan_results ADD COLUMN ocr_confidence VARCHAR"),
+                ("quality_level", "ALTER TABLE scan_results ADD COLUMN quality_level VARCHAR"),
+                ("quality_hints_json", "ALTER TABLE scan_results ADD COLUMN quality_hints_json TEXT"),
+                ("best_frame_index", "ALTER TABLE scan_results ADD COLUMN best_frame_index INTEGER"),
+                ("failure_reason", "ALTER TABLE scan_results ADD COLUMN failure_reason VARCHAR"),
+                ("review_required", "ALTER TABLE scan_results ADD COLUMN review_required BOOLEAN DEFAULT 0"),
+                ("review_id", "ALTER TABLE scan_results ADD COLUMN review_id INTEGER"),
             ],
         }
 

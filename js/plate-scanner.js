@@ -143,6 +143,7 @@ const PlateScanner = (() => {
             provider: result?.provider || providerFallback,
             logIds: Array.isArray(result?.log_ids) ? result.log_ids : [],
             reportJobIds: Array.isArray(result?.report_job_ids) ? result.report_job_ids : [],
+            reviewIds: Array.isArray(result?.review_ids) ? result.review_ids : [],
             jobId: jobData?.job_id || ''
         };
     }
