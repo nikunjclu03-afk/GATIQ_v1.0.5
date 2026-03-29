@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    name: Windows Desktop Validation
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create backend virtual environment
+        run: python -m venv "GATIQ API\venv"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: |
+          & ".\GATIQ API\venv\Scripts\python.exe" -m pip install --upgrade pip
+          & ".\GATIQ API\venv\Scripts\python.exe" -m pip install -r ".\GATIQ API\requirements.txt" pyinstaller
+
+      - name: Validate source code
+        run: npm run validate:code
+
+      - name: Build brand assets
+        run: npm run build:brand
+
+      - name: Build packaged backend
+        run: npm run build:backend
+
+      - name: Validate packaged backend
+        run: npm run validate:backend
+
+      - name: Build unpacked desktop release
+        run: npm run dist:dir
+
+      - name: Validate unpacked desktop release
+        run: powershell -ExecutionPolicy Bypass -File .\desktop\validate-release.ps1
+
+      - name: Upload unpacked release artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatiq-ci-artifacts
+          path: |
+            release/**
+            build/logs/**
+          if-no-files-found: warn

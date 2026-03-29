@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-release:
+    name: Windows Release
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create backend virtual environment
+        run: python -m venv "GATIQ API\venv"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: |
+          & ".\GATIQ API\venv\Scripts\python.exe" -m pip install --upgrade pip
+          & ".\GATIQ API\venv\Scripts\python.exe" -m pip install -r ".\GATIQ API\requirements.txt" pyinstaller
+
+      - name: Build Windows release artifacts
+        run: |
+          npm run build:brand
+          npm run build:backend
+          npx electron-builder --win nsis --publish never
+
+      - name: Validate packaged release
+        run: powershell -ExecutionPolicy Bypass -File .\desktop\validate-release.ps1
+
+      - name: Publish GitHub release with generated notes
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/GATIQ-Setup-*.exe
+            release/*.yml
+            release/*.blockmap
+
+      - name: Upload release artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatiq-release-artifacts
+          path: |
+            release/**
+            build/logs/**
+          if-no-files-found: warn

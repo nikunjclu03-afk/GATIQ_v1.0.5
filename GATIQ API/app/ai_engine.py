@@ -5,7 +5,6 @@ import easyocr
 import os
 import re
 import base64
-import time
 from datetime import datetime
 
 class GatiqLocalAI:
@@ -138,13 +137,27 @@ class GatiqLocalAI:
         if len(text) >= 4 and text[2:4].isdigit(): score += 5
         return score
 
-    def _process_core(self, img):
+    def _build_result_tagging(self, final_plate):
+        return "Resident" if any(final_plate.startswith(s) for s in ["MH", "DL", "HR", "UP", "KA", "TN", "GA", "RJ", "GJ", "AP", "TS", "MP", "PB", "BR"]) else "Non-Resident"
+
+    def _process_core(self, img, include_diagnostics=False):
         if img is None: return []
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        diagnostics = {
+            "vehicle_candidates": 0,
+            "vehicles_found": 0,
+            "plate_candidates_raw": 0,
+            "plate_candidates_above_threshold": 0,
+            "fallback_used": False,
+            "fallback_text_raw": "",
+            "fallback_text_corrected": "",
+            "plate_diagnostics": [],
+        }
 
         # 1. Broad Vehicle Detection
         vehicle_results = self.vehicle_detector(img, verbose=False)[0]
         vehicles_found = []
+        diagnostics["vehicle_candidates"] = len(vehicle_results.boxes)
         for v_box in vehicle_results.boxes:
             v_cls = int(v_box.cls[0])
             v_conf = float(v_box.conf[0])
@@ -158,14 +171,17 @@ class GatiqLocalAI:
                     "type": v_type,
                     "side": v_side
                 })
+        diagnostics["vehicles_found"] = len(vehicles_found)
 
         # 2. Precise Plate Detection
         plate_results = self.detector(img, verbose=False)[0]
         detections = []
+        diagnostics["plate_candidates_raw"] = len(plate_results.boxes)
         
         for idx, p_box in enumerate(plate_results.boxes):
             conf = float(p_box.conf[0])
             if conf < 0.3: continue
+            diagnostics["plate_candidates_above_threshold"] += 1
             
             px1, py1, px2, py2 = map(int, p_box.xyxy[0])
             
@@ -207,26 +223,41 @@ class GatiqLocalAI:
                 final_plate = best_cand["text"] if best_cand["score"] >= 20 else "UNREADABLE"
             else:
                 final_plate = "UNREADABLE"
+
+            diagnostics["plate_diagnostics"].append({
+                "bbox": [px1, py1, px2, py2],
+                "detector_confidence": round(conf, 4),
+                "vehicle_type": v_type,
+                "direction": v_side,
+                "final_plate": final_plate,
+                "accepted_candidate": best_cand,
+                "candidates": candidates,
+            })
             
             detections.append({
                 "plate_number": final_plate,
                 "direction": v_side, 
-                "tagging": "Resident" if any(final_plate.startswith(s) for s in ["MH", "DL", "HR", "UP", "KA", "TN", "GA", "RJ", "GJ", "AP", "TS", "MP", "PB", "BR"]) else "Non-Resident",
+                "tagging": self._build_result_tagging(final_plate),
                 "vehicle_type": v_type,
                 "debug": {"conf": conf, "best_variant": best_cand["variant"] if best_cand else "none"}
             })
 
         # Fallback
         if not detections:
+            diagnostics["fallback_used"] = True
             gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             ocr_out = self.ocr.readtext(gray_img, detail=0)
             raw_text = "".join(ocr_out).replace(" ", "").upper()
             corrected = self.apply_segment_correction(raw_text)
+            diagnostics["fallback_text_raw"] = raw_text
+            diagnostics["fallback_text_corrected"] = corrected
             if len(corrected) >= 7:
                 detections.append({
-                    "plate_number": corrected, "direction": "Entry", "tagging": "Non-Resident", "vehicle_type": "Car"
+                    "plate_number": corrected, "direction": "Entry", "tagging": self._build_result_tagging(corrected), "vehicle_type": "Car"
                 })
 
+        if include_diagnostics:
+            return detections, diagnostics
         return detections
 
     def process_image(self, base64_image):
@@ -239,6 +270,27 @@ class GatiqLocalAI:
             return []
         
         return self._process_core(img)
+
+    def process_image_detailed(self, base64_image):
+        try:
+            img_data = base64.b64decode(base64_image.split(",")[-1])
+            nparr = np.frombuffer(img_data, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            print(f"Error decoding image: {e}")
+            return [], {
+                "decode_error": str(e),
+                "vehicle_candidates": 0,
+                "vehicles_found": 0,
+                "plate_candidates_raw": 0,
+                "plate_candidates_above_threshold": 0,
+                "fallback_used": False,
+                "fallback_text_raw": "",
+                "fallback_text_corrected": "",
+                "plate_diagnostics": [],
+            }
+
+        return self._process_core(img, include_diagnostics=True)
 
 # Global instance
 engine = None

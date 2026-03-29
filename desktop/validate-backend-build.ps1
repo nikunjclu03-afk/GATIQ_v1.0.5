@@ -73,10 +73,14 @@ foreach ($required in @(
     (Join-Path $bundleRoot '.env'),
     (Join-Path $bundleRoot 'best.onnx'),
     (Join-Path $bundleRoot 'yolov8n.pt'),
-    (Join-Path $internalDir 'python314.dll'),
     (Join-Path $internalDir 'sqlite3.dll')
 )) {
     Assert-Path -PathValue $required -Label 'Required backend runtime file'
+}
+
+$pythonRuntimeDll = Get-ChildItem -Path $internalDir -Filter 'python3*.dll' -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $pythonRuntimeDll) {
+    throw "Python runtime DLL missing from backend bundle: $internalDir"
 }
 
 $cv2Binary = Get-ChildItem -Path $internalDir -Filter 'cv2*.pyd' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1

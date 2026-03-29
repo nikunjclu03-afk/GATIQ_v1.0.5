@@ -54,6 +54,24 @@ npm run dist
 npm run dev
 ```
 
+### Benchmark Plate Accuracy
+Create a CSV manifest with at least `image_path` and `expected_plate`. You can also add `expected_direction` if you want Entry/Exit accuracy.
+
+Sample manifest:
+`GATIQ API/benchmark_manifest.sample.csv`
+
+Run benchmark:
+```powershell
+& ".\GATIQ API\venv\Scripts\python.exe" ".\GATIQ API\benchmark_dataset.py" ".\GATIQ API\benchmark_manifest.sample.csv" --json-out ".\GATIQ API\benchmark_report.json"
+```
+
+The script reports:
+- exact plate match rate
+- normalized plate match rate
+- unreadable prediction rate
+- optional direction accuracy
+- per-image detection time and pass/fail details
+
 ## 🏗️ Project Structure
 
 - **Renderer (UI)**: `index.html`, `js/app.js`
@@ -69,6 +87,57 @@ npm run dev
 npm run validate:code
 npm run validate:backend
 npm run dist:validate
+```
+
+## CI/CD
+
+This repo now supports GitHub Actions for Windows-based CI/CD.
+
+### CI workflow
+- installs Node.js and Python
+- creates `GATIQ API\venv`
+- installs backend requirements plus `pyinstaller`
+- runs frontend/backend validation
+- builds the packaged backend
+- validates the unpacked desktop release
+
+### Release workflow
+- runs on version tags like `v1.0.6`
+- builds the Windows NSIS installer
+- uploads release artifacts to GitHub Actions
+- can publish through `electron-builder` using GitHub token permissions
+
+### Important setup notes
+- GitHub Actions must run on `windows-latest` because the desktop build and PowerShell scripts are Windows-specific.
+- The workflow creates `GATIQ API\venv` because local build scripts expect that exact path.
+- Set repository `Actions` permissions so workflows can write release contents.
+- For GitHub release publishing, the workflow uses `GH_TOKEN` from `secrets.GITHUB_TOKEN`.
+- If you later add Windows code signing, also configure `CSC_LINK` and `CSC_KEY_PASSWORD` secrets.
+- Branch protection should require the `Windows Desktop Validation` check before merge.
+- Release notes are generated automatically when the tag-based release workflow publishes GitHub Releases.
+- Your current git remote and `package.json > build.publish` repo target should match before release publishing is relied on.
+
+### Typical tag release flow
+```powershell
+git tag v1.0.6
+git push origin v1.0.6
+```
+
+The release workflow will build the installer and publish artifacts for that version.
+
+### Version bump and tag helper
+```powershell
+npm run release:tag -- -Version 1.0.6
+```
+
+Optional flags:
+- `-Commit`
+- `-Tag`
+- `-Push`
+
+Example:
+```powershell
+npm run release:tag -- -Version 1.0.6 -Commit -Tag -Push
 ```
 
 ## 🛡️ Security & Privacy

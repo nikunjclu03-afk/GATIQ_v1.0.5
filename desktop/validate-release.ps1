@@ -14,7 +14,9 @@ $releaseRoot = if ([string]::IsNullOrWhiteSpace($ReleaseRoot)) {
 
 $resourcesRoot = Join-Path $releaseRoot 'resources'
 $backendRoot = Join-Path $resourcesRoot 'backend'
-$setupExe = Join-Path $repoRoot 'release\GATIQ-Setup-1.0.5.exe'
+$setupExe = Get-ChildItem -Path (Join-Path $repoRoot 'release') -Filter 'GATIQ-Setup-*.exe' -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
 
 function Assert-Path {
     param(
@@ -44,10 +46,10 @@ foreach ($required in @(
     Assert-Path -PathValue $required -Label 'Release artifact'
 }
 
-if (Test-Path $setupExe) {
-    Write-Host "Installer found: $setupExe"
+if ($setupExe) {
+    Write-Host "Installer found: $($setupExe.FullName)"
 } else {
-    Write-Warning "Installer not found at $setupExe"
+    Write-Warning "Installer not found under $(Join-Path $repoRoot 'release')"
 }
 
 if (-not $SkipBackendSmoke) {

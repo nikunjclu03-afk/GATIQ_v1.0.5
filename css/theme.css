@@ -58,49 +58,63 @@
 .samsung-loader {
   --loader-size: 34px;
   --loader-color: #0f172a;
-  --loader-track: rgba(15, 23, 42, 0.14);
+  --loader-bar-width: calc(var(--loader-size) * 0.19);
+  --loader-bar-height: calc(var(--loader-size) * 0.4);
+  --loader-bar-offset: calc(var(--loader-size) * -0.68);
+  --loader-bar-origin: calc(var(--loader-size) * 0.68);
   width: var(--loader-size);
   aspect-ratio: 1;
-  border-radius: 50%;
   position: relative;
   box-sizing: border-box;
-  animation: samsungLoaderSpin 0.9s linear infinite;
 }
 
-.samsung-loader::before,
-.samsung-loader::after {
-  content: "";
+.samsung-loader-bar {
   position: absolute;
-  inset: 0;
-  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  width: var(--loader-bar-width);
+  height: var(--loader-bar-height);
+  margin-left: calc(var(--loader-bar-width) / -2);
+  margin-top: var(--loader-bar-offset);
+  border-radius: 999px;
+  background: var(--loader-color);
+  transform-origin: center var(--loader-bar-origin);
+  opacity: 0.16;
+  animation: samsungLoaderFade 1s linear infinite;
 }
 
-.samsung-loader::before {
-  border: max(2px, calc(var(--loader-size) * 0.085)) solid var(--loader-track);
-}
+.samsung-loader-bar:nth-child(1) { transform: rotate(0deg); animation-delay: -0.9s; }
+.samsung-loader-bar:nth-child(2) { transform: rotate(36deg); animation-delay: -0.8s; }
+.samsung-loader-bar:nth-child(3) { transform: rotate(72deg); animation-delay: -0.7s; }
+.samsung-loader-bar:nth-child(4) { transform: rotate(108deg); animation-delay: -0.6s; }
+.samsung-loader-bar:nth-child(5) { transform: rotate(144deg); animation-delay: -0.5s; }
+.samsung-loader-bar:nth-child(6) { transform: rotate(180deg); animation-delay: -0.4s; }
+.samsung-loader-bar:nth-child(7) { transform: rotate(216deg); animation-delay: -0.3s; }
+.samsung-loader-bar:nth-child(8) { transform: rotate(252deg); animation-delay: -0.2s; }
+.samsung-loader-bar:nth-child(9) { transform: rotate(288deg); animation-delay: -0.1s; }
+.samsung-loader-bar:nth-child(10) { transform: rotate(324deg); animation-delay: 0s; }
 
-.samsung-loader::after {
-  border: max(2px, calc(var(--loader-size) * 0.085)) solid transparent;
-  border-top-color: var(--loader-color);
-  border-right-color: color-mix(in srgb, var(--loader-color) 72%, transparent);
-  transform: rotate(-28deg);
+@keyframes samsungLoaderFade {
+  0%,
+  39%,
+  100% {
+    opacity: 0.16;
+  }
+  40% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.72;
+  }
 }
 
 .samsung-loader--light {
   --loader-color: #ffffff;
-  --loader-track: rgba(255, 255, 255, 0.22);
 }
 
 .samsung-loader--button {
-  --loader-size: 16px;
+  --loader-size: 18px;
   --loader-color: #ffffff;
-  --loader-track: rgba(255, 255, 255, 0.26);
-}
-
-@keyframes samsungLoaderSpin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* ---------- Dark Theme Override ---------- */
@@ -415,7 +429,6 @@ body.auth-open {
   margin: 0.8rem auto 0;
   --loader-size: 34px;
   --loader-color: #111827;
-  --loader-track: rgba(15, 23, 42, 0.1);
 }
 
 [data-theme="dark"] .startup-splash {
@@ -430,7 +443,6 @@ body.auth-open {
 
 [data-theme="dark"] .startup-loader {
   --loader-color: #f8fafc;
-  --loader-track: rgba(226, 232, 240, 0.14);
 }
 
 .product-type {

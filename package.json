@@ -8,11 +8,12 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/nikunjclu03-afk/GATIQ.git"
+    "url": "https://github.com/nikunjclu03-afk/GATIQ_v1.0.5.git"
   },
   "scripts": {
     "dev": "set ELECTRON_RUN_AS_NODE=&& .\\node_modules\\electron\\dist\\electron.exe .",
     "start": "set ELECTRON_RUN_AS_NODE=&& .\\node_modules\\electron\\dist\\electron.exe .",
+    "release:tag": "powershell -ExecutionPolicy Bypass -File ./desktop/release-tag.ps1",
     "build:brand": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' '.\\desktop\\generate_brand_assets.py'\"",
     "build:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/build-backend.ps1",
     "validate:code": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' -m compileall '.\\GATIQ API\\app'; node --check '.\\js\\domain-service.js'; node --check '.\\js\\backend-orchestrator.js'; node --check '.\\js\\auth-service.js'; node --check '.\\js\\quick-viewer-service.js'; node --check '.\\js\\plate-scanner.js'; node --check '.\\js\\app.js'\"",
@@ -72,7 +73,7 @@
       {
         "provider": "github",
         "owner": "nikunjclu03-afk",
-        "repo": "GATIQ",
+        "repo": "GATIQ_v1.0.5",
         "releaseType": "release"
       }
     ]
