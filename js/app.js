@@ -268,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     const DEFAULT_BACKEND_URL = 'http://127.0.0.1:8001';
     const DEFAULT_BACKEND_API_KEY = '7t#K9!vP$2wL5*G8^m1&Q4+Z7xR0_B3#';
+    const MIN_STARTUP_SPLASH_MS = 80;
     const startupTimestamp = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const QUICK_VIEWER_MIN_ZOOM = 0.7;
     const QUICK_VIEWER_MAX_ZOOM = 1.6;
@@ -448,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function finishStartupSplash() {
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const elapsed = now - startupTimestamp;
-        const remaining = Math.max(0, 220 - elapsed);
+        const remaining = Math.max(0, MIN_STARTUP_SPLASH_MS - elapsed);
 
         window.setTimeout(() => {
             if (startupSplash) {
@@ -1608,9 +1609,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function init() {
         setActiveUserScope(null);
-        await initializeBackendRuntime();
-        await initializeUpdaterRuntime();
-        await getPDFHistoryAsync();
+        await Promise.all([
+            initializeBackendRuntime(),
+            initializeUpdaterRuntime()
+        ]);
 
         // Load saved settings
         const savedSociety = storageGet(SOCIETY_KEY);
@@ -1633,6 +1635,15 @@ document.addEventListener('DOMContentLoaded', () => {
         initSyncStatus();
         updateScanButton();
         setupButtonMotion();
+        getPDFHistoryAsync()
+            .then(() => {
+                syncQuickAreaFilterOptions();
+                renderQuickAccessResults();
+                renderDashboard();
+            })
+            .catch((error) => {
+                console.error('Deferred PDF history preload failed:', error);
+            });
 
         // Event listeners
         registerBackendSettingsListeners();
