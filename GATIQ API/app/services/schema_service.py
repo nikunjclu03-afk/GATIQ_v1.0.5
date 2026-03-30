@@ -233,6 +233,44 @@ def ensure_normalized_schema() -> None:
             if table_name not in existing_tables:
                 connection.execute(text(statement))
 
+        # ─── Phase 3: Commercial & Reporting Readiness ───
+        phase3_tables = {
+            "correction_feedback": """
+                CREATE TABLE IF NOT EXISTS correction_feedback (
+                    id INTEGER PRIMARY KEY,
+                    scan_result_id INTEGER,
+                    review_id INTEGER,
+                    original_plate VARCHAR,
+                    corrected_plate VARCHAR,
+                    original_ocr_candidates_json TEXT,
+                    detector_confidence VARCHAR,
+                    ocr_confidence VARCHAR,
+                    quality_level VARCHAR,
+                    quality_hints_json TEXT,
+                    operator_action VARCHAR,
+                    operator_id VARCHAR,
+                    created_at DATETIME
+                )
+            """,
+            "report_export_jobs": """
+                CREATE TABLE IF NOT EXISTS report_export_jobs (
+                    id INTEGER PRIMARY KEY,
+                    export_type VARCHAR DEFAULT 'csv',
+                    filters_json TEXT,
+                    status VARCHAR DEFAULT 'pending',
+                    result_path VARCHAR,
+                    total_rows INTEGER DEFAULT 0,
+                    operator_id VARCHAR,
+                    created_at DATETIME,
+                    completed_at DATETIME
+                )
+            """
+        }
+
+        for table_name, statement in phase3_tables.items():
+            if table_name not in existing_tables:
+                connection.execute(text(statement))
+
         inspector = inspect(database.engine)
         alter_map = {
             "logs": [

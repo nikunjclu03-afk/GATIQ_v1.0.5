@@ -399,3 +399,37 @@ class PlanEntitlement(Base):
     retention_days = Column(Integer, default=30)
     features_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+# --- Phase 3: Commercial & Reporting Readiness ---
+
+class CorrectionFeedback(Base):
+    __tablename__ = "correction_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scan_result_id = Column(Integer, nullable=True, index=True)
+    review_id = Column(Integer, nullable=True, index=True)
+    original_plate = Column(String, index=True)
+    corrected_plate = Column(String, index=True)
+    original_ocr_candidates_json = Column(Text, nullable=True)
+    detector_confidence = Column(String, nullable=True)
+    ocr_confidence = Column(String, nullable=True)
+    quality_level = Column(String, nullable=True)
+    quality_hints_json = Column(Text, nullable=True)
+    operator_action = Column(String, nullable=True)  # confirm_as_is | edit_and_confirm | reject
+    operator_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
+class ReportExportJob(Base):
+    __tablename__ = "report_export_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    export_type = Column(String, default="csv")  # csv | pdf
+    filters_json = Column(Text, nullable=True)  # JSON: date_from, date_to, area, gate, direction
+    status = Column(String, default="pending", index=True)  # pending | processing | completed | failed
+    result_path = Column(String, nullable=True)  # local file path to generated export
+    total_rows = Column(Integer, default=0)
+    operator_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)

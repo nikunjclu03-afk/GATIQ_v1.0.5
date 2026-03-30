@@ -386,3 +386,66 @@ class PlanEntitlementResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Phase 3 Schemas ---
+
+class CorrectionFeedbackResponse(BaseModel):
+    id: int
+    scan_result_id: Optional[int] = None
+    review_id: Optional[int] = None
+    original_plate: str
+    corrected_plate: str
+    original_ocr_candidates_json: Optional[str] = None
+    detector_confidence: Optional[str] = None
+    ocr_confidence: Optional[str] = None
+    quality_level: Optional[str] = None
+    quality_hints_json: Optional[str] = None
+    operator_action: Optional[str] = None
+    operator_id: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ReportExportRequest(BaseModel):
+    export_type: str = "csv"
+    date_from: Optional[str] = None
+    date_to: Optional[str] = None
+    area: Optional[str] = None
+    gate_no: Optional[str] = None
+    direction: Optional[str] = None
+    operator_id: Optional[str] = None
+
+class ReportExportJobResponse(BaseModel):
+    id: int
+    export_type: str
+    filters_json: Optional[str] = None
+    status: str
+    result_path: Optional[str] = None
+    total_rows: int
+    operator_id: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class AnalyticsSummary(BaseModel):
+    total_entries: int = 0
+    total_exits: int = 0
+    unique_vehicles: int = 0
+    avg_stay_minutes: Optional[float] = None
+    overstay_count: int = 0
+    manual_entries: int = 0
+    scan_entries: int = 0
+    whitelist_hits: int = 0
+    correction_rate: Optional[float] = None
+    top_repeat_vehicles: List[dict] = Field(default_factory=list)
+    daily_breakdown: List[dict] = Field(default_factory=list)
+
+class PlanPolicyCheck(BaseModel):
+    feature: str
+    allowed: bool
+    plan_tier: str
+    message: Optional[str] = None

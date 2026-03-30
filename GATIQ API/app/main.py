@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import database, models
 from .core.config import API_TITLE, API_VERSION, CORS_ORIGIN_REGEX, ensure_required_config
-from .routers import auth, camera, exceptions, health, jobs, logs, reports, reviews, root, scan, sync, vehicles, whitelist, audit, incidents
+from .routers import auth, camera, exceptions, health, jobs, logs, reports, reviews, root, scan, sync, vehicles, whitelist, audit, incidents, plans, analytics, exports, corrections
 from .services.ai_runtime import warmup_async
 from .services.job_service import start_worker
 from .services.normalization_service import backfill_normalized_references
@@ -14,6 +14,8 @@ ensure_normalized_schema()
 models.Base.metadata.create_all(bind=database.engine)
 with database.SessionLocal() as _db:
     backfill_normalized_references(_db)
+    from .services.plan_service import seed_plans
+    seed_plans(_db)
 
 app = FastAPI(title=API_TITLE, version=API_VERSION)
 
@@ -48,3 +50,7 @@ app.include_router(exceptions.router)
 app.include_router(camera.router)
 app.include_router(audit.router)
 app.include_router(incidents.router)
+app.include_router(plans.router)
+app.include_router(analytics.router)
+app.include_router(exports.router)
+app.include_router(corrections.router)

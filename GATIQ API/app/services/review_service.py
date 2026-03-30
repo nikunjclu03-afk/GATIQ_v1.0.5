@@ -13,6 +13,7 @@ from .event_service import record_event
 from .log_service import create_vehicle_log
 from .vehicle_service import check_duplicate_flags, record_visit_entry
 from .audit_service import log_audit_event
+from .correction_service import record_correction
 
 
 def _utcnow():
@@ -243,6 +244,22 @@ def confirm_review(
         entity_id=str(review.id),
         new_values={"final_plate": final_plate, "log_id": created_log.id},
         reason=request.review_note
+    )
+
+    # Phase 3: Record correction feedback for AI retraining
+    was_corrected = review.corrected_plate is not None and review.corrected_plate != review.detected_plate
+    record_correction(
+        db,
+        scan_result_id=review.scan_result_id,
+        review_id=review.id,
+        original_plate=review.detected_plate or "",
+        corrected_plate=final_plate,
+        detector_confidence=review.detector_confidence,
+        ocr_confidence=review.ocr_confidence,
+        quality_level=review.quality_level,
+        quality_hints=_loads(review.quality_hints_json),
+        operator_action="edit_and_confirm" if was_corrected else "confirm_as_is",
+        operator_id=str(request.reviewer_user_id) if request.reviewer_user_id else None,
     )
 
     return serialize_review(review)

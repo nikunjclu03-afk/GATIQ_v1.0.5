@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnSettings = document.getElementById('btnSettings');
             const btnManageResidents = document.getElementById('btnManageResidents'); // Whitelist
             
-            if (role === 'operator' || role === 'guard') {
+            if (role === 'guard') {
                 if (btnSettings) {
                     btnSettings.style.opacity = '0.5';
                     btnSettings.style.pointerEvents = 'none';
@@ -127,10 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnSettings) {
                     btnSettings.style.opacity = '1';
                     btnSettings.style.pointerEvents = 'auto';
+                    btnSettings.title = "";
                 }
                 if (btnManageResidents) {
                     btnManageResidents.style.opacity = '1';
                     btnManageResidents.style.pointerEvents = 'auto';
+                    btnManageResidents.title = "";
                 }
             }
         } catch(e) { /* ignore */ }

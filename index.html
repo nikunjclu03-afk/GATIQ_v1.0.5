@@ -389,6 +389,113 @@
                     </div>
                 </section>
 
+                <!-- ANALYTICS DASHBOARD (Phase 3) -->
+                <section class="panel dashboard-panel" id="analyticsDashboardPanel">
+                    <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="panel-title" style="color:#6366f1;"><i data-lucide="bar-chart-3" style="width:18px;height:18px;"></i> Monthly Analytics</div>
+                        <div style="display:flex; gap:0.4rem; align-items:center;">
+                            <input type="month" id="analyticsMonth" class="form-input" style="font-size:0.75rem; padding:0.2rem 0.4rem; width:auto; border-radius:6px;">
+                            <button class="btn btn-secondary" id="btnRefreshAnalytics" style="padding:0.2rem 0.5rem; font-size:0.7rem;">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="dashboard-stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.6rem;">
+                            <article class="dashboard-stat-card" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); border:1px solid #c7d2fe;">
+                                <span>Total Entries</span>
+                                <strong id="anTotalEntries" style="color:#4f46e5;">0</strong>
+                            </article>
+                            <article class="dashboard-stat-card" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border:1px solid #fcd34d;">
+                                <span>Total Exits</span>
+                                <strong id="anTotalExits" style="color:#d97706;">0</strong>
+                            </article>
+                            <article class="dashboard-stat-card" style="background: linear-gradient(135deg, #ecfdf5, #d1fae5); border:1px solid #6ee7b7;">
+                                <span>Unique Vehicles</span>
+                                <strong id="anUniqueVehicles" style="color:#059669;">0</strong>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span>Avg Stay (min)</span>
+                                <strong id="anAvgStay">—</strong>
+                            </article>
+                            <article class="dashboard-stat-card" style="background:#fef2f2; border:1px solid #fca5a5;">
+                                <span>Overstays</span>
+                                <strong id="anOverstays" style="color:#ef4444;">0</strong>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span>Whitelist Hits</span>
+                                <strong id="anWhitelistHits">0</strong>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span>Correction Rate</span>
+                                <strong id="anCorrectionRate">0%</strong>
+                            </article>
+                            <article class="dashboard-stat-card">
+                                <span>Manual vs Scan</span>
+                                <strong id="anManualVsScan">0 / 0</strong>
+                            </article>
+                        </div>
+                        <!-- Top Repeat Vehicles -->
+                        <div style="margin-top: 1rem;">
+                            <h4 style="font-size:0.8rem; font-weight:600; margin-bottom:0.5rem; color:var(--text-secondary);"><i data-lucide="repeat" style="width:14px;height:14px; vertical-align:middle;"></i> Top Repeat Vehicles</h4>
+                            <div id="anTopRepeatVehicles" style="display:flex; flex-wrap:wrap; gap:0.4rem; font-size:0.75rem;">
+                                <span style="color:var(--text-tertiary);">No data yet.</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- REPORT CENTER (Phase 3) -->
+                <section class="panel dashboard-panel" id="reportCenterPanel">
+                    <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="panel-title" style="color:#059669;"><i data-lucide="file-spreadsheet" style="width:18px;height:18px;"></i> Report Center</div>
+                    </div>
+                    <div class="panel-body">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.6rem; margin-bottom: 1rem;">
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.65rem;">From Date</label>
+                                <input type="date" id="exportDateFrom" class="form-input" style="font-size:0.75rem; padding:0.25rem 0.4rem;">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.65rem;">To Date</label>
+                                <input type="date" id="exportDateTo" class="form-input" style="font-size:0.75rem; padding:0.25rem 0.4rem;">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.65rem;">Direction</label>
+                                <select id="exportDirection" class="form-select" style="font-size:0.75rem; padding:0.25rem 0.4rem;">
+                                    <option value="">All</option>
+                                    <option value="Entry">Entry</option>
+                                    <option value="Exit">Exit</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0; display:flex; align-items:flex-end;">
+                                <button class="btn btn-primary" id="btnExportCsv" style="width:100%; padding:0.35rem 0.8rem; font-size:0.75rem; display:flex; align-items:center; justify-content:center; gap:0.3rem;">
+                                    <i data-lucide="download" style="width:14px;height:14px;"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div id="exportJobsList" style="font-size:0.75rem; color:var(--text-tertiary);">
+                            No exports generated yet.
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PLAN INFO BADGE (Phase 3) -->
+                <section class="panel dashboard-panel" id="planInfoPanel">
+                    <div class="panel-header">
+                        <div class="panel-title" style="color:#8b5cf6;"><i data-lucide="crown" style="width:18px;height:18px;"></i> Subscription Plan</div>
+                    </div>
+                    <div class="panel-body" style="display:flex; align-items:center; gap:1rem;">
+                        <div style="flex:1;">
+                            <div style="font-size:0.8rem; color:var(--text-secondary);">Active Plan</div>
+                            <strong id="activePlanTier" style="font-size:1.4rem; text-transform:capitalize; color:#8b5cf6;">—</strong>
+                        </div>
+                        <div style="flex:1; font-size:0.75rem; color:var(--text-tertiary);">
+                            <div>Cameras: <strong id="planMaxCameras">—</strong></div>
+                            <div>Retention: <strong id="planRetentionDays">—</strong> days</div>
+                        </div>
+                        <div id="planFeaturePills" style="flex:2; display:flex; flex-wrap:wrap; gap:0.3rem; font-size:0.65rem;">
+                        </div>
+                    </div>
+                </section>
 
                 <section class="panel dashboard-panel">
                     <div class="panel-header">
@@ -1460,6 +1567,7 @@
     <script src="js/review-queue.js"></script>
     <script src="js/camera-health.js"></script>
     <script src="js/phase2-features.js"></script>
+    <script src="js/phase3-dashboard.js"></script>
     <script src="js/app.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
