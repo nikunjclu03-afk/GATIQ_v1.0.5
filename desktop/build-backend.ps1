@@ -13,10 +13,37 @@ $venvPython = Join-Path $backendRoot 'venv\Scripts\python.exe'
 $venvSitePackages = Join-Path $backendRoot 'venv\Lib\site-packages'
 $cv2PackageDir = Join-Path $venvSitePackages 'cv2'
 
-if (Test-Path $venvPython) {
+function Test-PythonExe {
+    param(
+        [string]$Command,
+        [string[]]$Arguments = @('--version')
+    )
+
+    try {
+        & $Command @Arguments *> $null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+if (Test-PythonExe -Command $venvPython) {
     $pythonExe = $venvPython
+    $pythonArgs = @()
+} elseif (Test-PythonExe -Command 'py' -Arguments @('-3.14', '--version')) {
+    $pythonExe = 'py'
+    $pythonArgs = @('-3.14')
 } else {
     $pythonExe = 'python'
+    $pythonArgs = @()
+}
+
+if ($pythonExe -ne $venvPython -and (Test-Path $venvSitePackages)) {
+    if ([string]::IsNullOrWhiteSpace($env:PYTHONPATH)) {
+        $env:PYTHONPATH = $venvSitePackages
+    } else {
+        $env:PYTHONPATH = "$venvSitePackages;$env:PYTHONPATH"
+    }
 }
 
 if (-not (Test-Path $entryFile)) {
@@ -27,7 +54,7 @@ if (-not (Test-Path $backendRoot)) {
     throw "Backend root missing: $backendRoot"
 }
 
-& $pythonExe -m pip show pyinstaller *> $null
+& $pythonExe @pythonArgs -m pip show pyinstaller *> $null
 if ($LASTEXITCODE -ne 0) {
     throw 'PyInstaller is required. Install it in the backend environment before running npm run dist.'
 }
@@ -106,7 +133,7 @@ if (Test-Path $logFile) { Remove-Item $logFile -Force }
 if (Test-Path $errLogFile) { Remove-Item $errLogFile -Force }
 $previousErrorAction = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-& $pythonExe @pyiArgs 2>&1 | Tee-Object -FilePath $logFile
+& $pythonExe @pythonArgs @pyiArgs 2>&1 | Tee-Object -FilePath $logFile
 $pyinstallerExitCode = $LASTEXITCODE
 $ErrorActionPreference = $previousErrorAction
 

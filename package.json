@@ -14,7 +14,7 @@
     "dev": "set ELECTRON_RUN_AS_NODE=&& .\\node_modules\\electron\\dist\\electron.exe .",
     "start": "set ELECTRON_RUN_AS_NODE=&& .\\node_modules\\electron\\dist\\electron.exe .",
     "release:tag": "powershell -ExecutionPolicy Bypass -File ./desktop/release-tag.ps1",
-    "build:brand": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' '.\\desktop\\generate_brand_assets.py'\"",
+    "build:brand": "powershell -ExecutionPolicy Bypass -File ./desktop/build-brand.ps1",
     "build:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/build-backend.ps1",
     "validate:code": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' -m compileall '.\\GATIQ API\\app'; node --check '.\\desktop\\licensing\\constants.js'; node --check '.\\desktop\\licensing\\hwid.js'; node --check '.\\desktop\\licensing\\license-service.js'; node --check '.\\desktop\\main.js'; node --check '.\\desktop\\preload.js'; node --check '.\\js\\domain-service.js'; node --check '.\\js\\backend-orchestrator.js'; node --check '.\\js\\auth-service.js'; node --check '.\\js\\quick-viewer-service.js'; node --check '.\\js\\plate-scanner.js'; node --check '.\\js\\app.js'\"",
     "validate:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/validate-backend-build.ps1",
