@@ -338,7 +338,7 @@ class AuditEventBase(BaseModel):
 
 class AuditEventResponse(AuditEventBase):
     id: int
-    created_at: datetime
+    created_at: datetime.datetime
 
     class Config:
         from_attributes = True
@@ -354,8 +354,8 @@ class IncidentCreate(BaseModel):
 class IncidentResponse(IncidentCreate):
     id: int
     status: str
-    created_at: datetime
-    resolved_at: Optional[datetime] = None
+    created_at: datetime.datetime
+    resolved_at: Optional[datetime.datetime] = None
     resolver_id: Optional[str] = None
 
     class Config:
@@ -370,8 +370,8 @@ class WhitelistImportJobResponse(BaseModel):
     success_count: int
     error_count: int
     error_details_json: Optional[str] = None
-    created_at: datetime
-    completed_at: Optional[datetime] = None
+    created_at: datetime.datetime
+    completed_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True
@@ -382,7 +382,7 @@ class PlanEntitlementResponse(BaseModel):
     max_cameras: int
     retention_days: int
     features_json: Optional[str] = None
-    created_at: datetime
+    created_at: datetime.datetime
 
     class Config:
         from_attributes = True
@@ -403,7 +403,7 @@ class CorrectionFeedbackResponse(BaseModel):
     quality_hints_json: Optional[str] = None
     operator_action: Optional[str] = None
     operator_id: Optional[str] = None
-    created_at: datetime
+    created_at: datetime.datetime
 
     class Config:
         from_attributes = True
@@ -425,8 +425,8 @@ class ReportExportJobResponse(BaseModel):
     result_path: Optional[str] = None
     total_rows: int
     operator_id: Optional[str] = None
-    created_at: datetime
-    completed_at: Optional[datetime] = None
+    created_at: datetime.datetime
+    completed_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True

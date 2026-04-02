@@ -316,6 +316,8 @@ def ensure_normalized_schema() -> None:
         }
 
         for table_name, operations in alter_map.items():
+            if table_name not in inspector.get_table_names():
+                continue
             columns = _column_names(inspector, table_name)
             for column_name, statement in operations:
                 if column_name not in columns:
