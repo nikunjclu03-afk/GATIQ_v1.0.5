@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, session, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, session, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const http = require('http');
 const https = require('https');
 const { spawn } = require('child_process');
+const { createLicenseService } = require('./licensing/license-service');
 
 const BACKEND_HOST = '127.0.0.1';
 const BACKEND_PORT = 8001;
@@ -19,6 +20,7 @@ let backendPollTimer = null;
 let runtimePaths = null;
 let updaterConfigured = false;
 let pendingGoogleAuth = null;
+let licenseService = null;
 let backendStatus = {
   state: 'stopped',
   message: 'Desktop backend is not running yet.',
@@ -899,8 +901,24 @@ function createMainWindow() {
 }
 
 function registerIpc() {
-  ipcMain.handle('secure-config:load-backend', async () => loadSecureBackendConfig());
+  ipcMain.handle('license:get-state', async () => licenseService.getActivationState(true));
+  ipcMain.handle('license:select-file', async () => licenseService.selectLicenseFile(mainWindow));
+  ipcMain.handle('license:activate', async (_event, payload) => {
+    const state = await licenseService.activateFromFile(payload?.filePath);
+    await startLicensedServicesIfNeeded();
+    return state;
+  });
+  ipcMain.handle('license:clear', async () => {
+    await stopBackend();
+    return licenseService.clearActivation();
+  });
+
+  ipcMain.handle('secure-config:load-backend', async () => {
+    await licenseService.assertLicensed();
+    return loadSecureBackendConfig();
+  });
   ipcMain.handle('secure-config:save-backend', async (_event, nextConfig) => {
+    await licenseService.assertLicensed();
     const previous = loadSecureBackendConfig();
     const saved = saveSecureBackendConfig(nextConfig);
     if (saved.apiKey !== previous.apiKey) {
@@ -908,31 +926,87 @@ function registerIpc() {
     }
     return saved;
   });
-  ipcMain.handle('backend:get-status', async () => backendStatus);
+  ipcMain.handle('backend:get-status', async () => {
+    await licenseService.assertLicensed();
+    return backendStatus;
+  });
   ipcMain.handle('backend:test-connection', async () => {
+    await licenseService.assertLicensed();
     if (!backendProcess || backendProcess.exitCode !== null) {
       await startBackend();
     }
     return pollBackendHealth();
   });
   ipcMain.handle('backend:restart', async () => {
+    await licenseService.assertLicensed();
     await restartBackend();
     return backendStatus;
   });
-  ipcMain.handle('updater:get-status', async () => updaterStatus);
-  ipcMain.handle('updater:check', async () => checkForAppUpdates());
-  ipcMain.handle('updater:install', async () => ({ started: installDownloadedUpdate() }));
-  ipcMain.handle('auth:start-google', async (_event, payload) => startGoogleDesktopAuth(payload || {}));
-  ipcMain.handle('cloud:upload-pdf', async (_event, payload) => uploadToDrive(payload));
+  ipcMain.handle('updater:get-status', async () => {
+    await licenseService.assertLicensed();
+    return updaterStatus;
+  });
+  ipcMain.handle('updater:check', async () => {
+    await licenseService.assertLicensed();
+    return checkForAppUpdates();
+  });
+  ipcMain.handle('updater:install', async () => {
+    await licenseService.assertLicensed();
+    return { started: installDownloadedUpdate() };
+  });
+  ipcMain.handle('auth:start-google', async (_event, payload) => {
+    await licenseService.assertLicensed();
+    return startGoogleDesktopAuth(payload || {});
+  });
+  ipcMain.handle('cloud:upload-pdf', async (_event, payload) => {
+    await licenseService.assertLicensed();
+    return uploadToDrive(payload);
+  });
   ipcMain.handle('cloud:get-status', async () => {
+    await licenseService.assertLicensed();
     const creds = loadCloudCredentials();
     return (creds && creds.refresh_token) ? { connected: true } : { connected: false };
   });
   ipcMain.handle('cloud:disconnect', async () => {
+    await licenseService.assertLicensed();
     const file = getCloudCredsFile();
     if (fs.existsSync(file)) fs.unlinkSync(file);
     return { success: true };
   });
+}
+
+async function startLicensedServicesIfNeeded() {
+  const licenseState = await licenseService.getActivationState(true);
+  if (!licenseState.isActivated) {
+    await stopBackend();
+    return licenseState;
+  }
+
+  if (!backendProcess || backendProcess.exitCode !== null) {
+    await startBackend().catch((error) => {
+      setBackendStatus({
+        state: 'failed',
+        healthy: false,
+        error: error.message,
+        message: `Managed backend startup failed: ${error.message}`
+      });
+    });
+  }
+
+  if (app.isPackaged) {
+    setTimeout(() => {
+      checkForAppUpdates().catch((error) => {
+        setUpdaterStatus({
+          state: 'error',
+          message: `Auto-update failed: ${error.message}`,
+          error: error.message,
+          percent: 0
+        });
+      });
+    }, AUTO_UPDATE_CHECK_DELAY_MS);
+  }
+
+  return licenseState;
 }
 
 app.on('web-contents-created', (_event, contents) => {
@@ -962,29 +1036,11 @@ if (!singleInstanceLock) {
       return allowed.includes(permission);
     });
     getRuntimePaths();
+    licenseService = createLicenseService({ app, dialog, safeStorage });
     registerIpc();
     configureAutoUpdater();
     createMainWindow();
-    await startBackend().catch((error) => {
-      setBackendStatus({
-        state: 'failed',
-        healthy: false,
-        error: error.message,
-        message: `Managed backend startup failed: ${error.message}`
-      });
-    });
-    if (app.isPackaged) {
-      setTimeout(() => {
-        checkForAppUpdates().catch((error) => {
-          setUpdaterStatus({
-            state: 'error',
-            message: `Auto-update failed: ${error.message}`,
-            error: error.message,
-            percent: 0
-          });
-        });
-      }, AUTO_UPDATE_CHECK_DELAY_MS);
-    }
+    await startLicensedServicesIfNeeded();
   });
 
   app.on('before-quit', () => {

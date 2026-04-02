@@ -28,6 +28,16 @@ function Assert-Path {
     }
 }
 
+function Assert-FileAbsent {
+    param(
+        [string]$PathValue,
+        [string]$Label
+    )
+    if (Test-Path $PathValue) {
+        throw "$Label should not be packaged: $PathValue"
+    }
+}
+
 Write-Host "Validating packaged desktop release at $releaseRoot"
 
 foreach ($required in @(
@@ -44,6 +54,15 @@ foreach ($required in @(
     (Join-Path $backendRoot '_internal\cv2.pyd')
 )) {
     Assert-Path -PathValue $required -Label 'Release artifact'
+}
+
+foreach ($forbidden in @(
+    (Join-Path $resourcesRoot 'private.pem'),
+    (Join-Path $resourcesRoot 'license.dat'),
+    (Join-Path $backendRoot 'private.pem'),
+    (Join-Path $backendRoot 'license.dat')
+)) {
+    Assert-FileAbsent -PathValue $forbidden -Label 'Sensitive licensing file'
 }
 
 if ($setupExe) {

@@ -34,6 +34,83 @@
         </div>
     </div>
 
+    <section class="license-shell license-shell-hidden" id="activationShell" aria-live="polite">
+        <div class="license-shell-backdrop"></div>
+        <div class="license-shell-layout">
+            <aside class="license-shell-showcase">
+                <div class="license-shell-brand">
+                    <img src="img/gatiq-mark-dark.png" alt="GATIQ Logo" class="license-shell-logo brand-logo-image" data-brand-logo="primary">
+                    <div>
+                        <div class="license-shell-product">GATIQ</div>
+                        <div class="license-shell-subtitle">Offline machine-locked activation</div>
+                    </div>
+                </div>
+                <div class="license-shell-copy">
+                    <span class="license-shell-eyebrow">Desktop Security</span>
+                    <h1>Activate this installed workstation before use.</h1>
+                    <p>This copy of GATIQ runs only on the device licensed for your site. Share the Device ID below with your administrator, then import the signed <code>license.dat</code> file you receive.</p>
+                </div>
+                <div class="license-shell-trust">
+                    <span class="license-trust-chip">Offline Verification</span>
+                    <span class="license-trust-chip">Public Key Verified</span>
+                    <span class="license-trust-chip">Machine Bound</span>
+                </div>
+            </aside>
+
+            <div class="license-shell-panel">
+                <div class="license-panel-head">
+                    <div>
+                        <div class="license-panel-eyebrow">Activation Required</div>
+                        <h2>Locked until a valid license is installed</h2>
+                    </div>
+                    <span class="license-status-pill" id="activationStatusPill">Locked</span>
+                </div>
+
+                <div class="license-device-card">
+                    <div class="license-device-label">Device ID / HWID</div>
+                    <div class="license-device-id" id="activationDeviceId">Loading device fingerprint...</div>
+                    <button class="license-secondary-btn" id="btnCopyDeviceId" type="button">Copy Device ID</button>
+                </div>
+
+                <div class="license-instructions">
+                    <div class="license-instruction-step"><span>1</span> Send this Device ID to your GATIQ admin or licensing operator.</div>
+                    <div class="license-instruction-step"><span>2</span> Receive a signed <code>license.dat</code> generated specifically for this machine.</div>
+                    <div class="license-instruction-step"><span>3</span> Import the file below to unlock this installed app offline.</div>
+                </div>
+
+                <div class="license-action-row">
+                    <button class="btn btn-primary" id="btnImportLicense" type="button">Import license.dat</button>
+                    <button class="license-secondary-btn" id="btnRefreshActivation" type="button">Re-check activation</button>
+                </div>
+
+                <div class="license-selection" id="activationSelectedFile">No license file selected yet.</div>
+                <div class="license-message license-message-muted" id="activationMessage">Activation status will appear here.</div>
+
+                <div class="license-summary-card" id="activationSummaryCard" hidden>
+                    <div class="license-summary-title">Installed License</div>
+                    <div class="license-summary-grid">
+                        <div>
+                            <span>License ID</span>
+                            <strong id="activationLicenseId">-</strong>
+                        </div>
+                        <div>
+                            <span>Issued To</span>
+                            <strong id="activationIssuedTo">-</strong>
+                        </div>
+                        <div>
+                            <span>Issued At</span>
+                            <strong id="activationIssuedAt">-</strong>
+                        </div>
+                        <div>
+                            <span>Expires</span>
+                            <strong id="activationExpiresAt">Lifetime</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="auth-shell" id="authShell">
         <div class="auth-layout">
             <div class="auth-center-watermark" aria-hidden="true">
@@ -353,21 +430,21 @@
                 <!-- EXCEPTIONS DASHBOARD (Phase 1) -->
                 <section class="panel dashboard-panel" id="exceptionDashboardPanel" style="display:none;">
                     <div class="panel-header">
-                        <div class="panel-title" style="color:#ef4444;"><i data-lucide="alert-triangle" style="width:18px;height:18px;"></i> Exception Dashboard</div>
+                        <div class="panel-title" style="color:#d71920;"><i data-lucide="alert-triangle" style="width:18px;height:18px;"></i> Exception Dashboard</div>
                     </div>
                     <div class="panel-body">
                         <div class="dashboard-stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
-                            <article class="dashboard-stat-card" style="background:#fef2f2; border:1px solid #fca5a5;">
+                            <article class="dashboard-stat-card" style="background:#fff1f2; border:1px solid #f19aa0;">
                                 <span>Unreadable Scans</span>
-                                <strong id="excUnreadableCount" style="color:#ef4444;">0</strong>
+                                <strong id="excUnreadableCount" style="color:#d71920;">0</strong>
                             </article>
                             <article class="dashboard-stat-card" style="background:#fffbeb; border:1px solid #fcd34d;">
                                 <span>Missing Purpose</span>
                                 <strong id="excMissingPurposeCount" style="color:#d97706;">0</strong>
                             </article>
-                            <article class="dashboard-stat-card" style="background:#fef2f2; border:1px solid #fca5a5;">
+                            <article class="dashboard-stat-card" style="background:#fff1f2; border:1px solid #f19aa0;">
                                 <span>Manual Entries</span>
-                                <strong id="excManualEntriesCount" style="color:#ef4444;">0</strong>
+                                <strong id="excManualEntriesCount" style="color:#d71920;">0</strong>
                             </article>
                             <article class="dashboard-stat-card">
                                 <span>Pending Exits</span>
@@ -381,9 +458,9 @@
                                 <span>Overstays</span>
                                 <strong id="excOverstaysCount">0</strong>
                             </article>
-                            <article class="dashboard-stat-card" style="background:#fef2f2; border:1px solid #fca5a5;">
+                            <article class="dashboard-stat-card" style="background:#fff1f2; border:1px solid #f19aa0;">
                                 <span>Failed Scans</span>
-                                <strong id="excFailedScansCount" style="color:#ef4444;">0</strong>
+                                <strong id="excFailedScansCount" style="color:#d71920;">0</strong>
                             </article>
                         </div>
                     </div>
@@ -416,9 +493,9 @@
                                 <span>Avg Stay (min)</span>
                                 <strong id="anAvgStay">—</strong>
                             </article>
-                            <article class="dashboard-stat-card" style="background:#fef2f2; border:1px solid #fca5a5;">
+                            <article class="dashboard-stat-card" style="background:#fff1f2; border:1px solid #f19aa0;">
                                 <span>Overstays</span>
-                                <strong id="anOverstays" style="color:#ef4444;">0</strong>
+                                <strong id="anOverstays" style="color:#d71920;">0</strong>
                             </article>
                             <article class="dashboard-stat-card">
                                 <span>Whitelist Hits</span>
@@ -530,7 +607,7 @@
                                 <svg viewBox="0 0 320 150" preserveAspectRatio="none" class="dashboard-trend-svg" aria-hidden="true">
                                     <defs>
                                         <linearGradient id="dashboardTrendStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-                                            <stop offset="0%" stop-color="#ef4444"></stop>
+                                            <stop offset="0%" stop-color="#d71920"></stop>
                                             <stop offset="38%" stop-color="#f59e0b"></stop>
                                             <stop offset="70%" stop-color="#22c55e"></stop>
                                             <stop offset="100%" stop-color="#39ff14"></stop>
@@ -833,7 +910,7 @@
                             <i data-lucide="list-checks" style="width:18px;height:18px;"></i> Gate Workflow
                         </div>
                         <div class="log-stats" style="display:flex; gap:0.5rem; align-items:center;">
-                            <span class="stat-badge" style="background:#fef2f2; border-color:#fca5a5;">Pending: <span class="num text-accent" id="pendingReviewCount" style="color:#ef4444;">0</span></span>
+                            <span class="stat-badge" style="background:#fff1f2; border-color:#f19aa0;">Pending: <span class="num text-accent" id="pendingReviewCount" style="color:#d71920;">0</span></span>
                             <span class="stat-badge">Today's Total: <span class="num" id="totalEntries">0</span></span>
                             <span style="display:none;" id="entryCount">0</span>
                             <span style="display:none;" id="exitCount">0</span>
@@ -843,7 +920,7 @@
                     <div class="auth-tab-row" style="margin-bottom: 0; padding: 0 0.5rem; gap: 1rem; border-bottom: none; justify-content: flex-start;">
                         <button class="auth-tab-btn active" id="tabReviewQueue" type="button" style="padding-bottom: 0.6rem; font-size: 0.9rem; flex:none;">
                             Review Queue
-                            <span class="badge" id="reviewQueueBadge" style="background:#ef4444; color:white; border-radius:10px; padding:2px 6px; font-size:10px; margin-left:6px; display:none;">0</span>
+                            <span class="badge" id="reviewQueueBadge" style="background:#d71920; color:white; border-radius:10px; padding:2px 6px; font-size:10px; margin-left:6px; display:none;">0</span>
                         </button>
                         <button class="auth-tab-btn" id="tabRecentLogs" type="button" style="padding-bottom: 0.6rem; font-size: 0.9rem; flex:none;">
                             Recent Logs

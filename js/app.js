@@ -9,8 +9,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---- DOM Elements ----
     const startupSplash = document.getElementById('startupSplash');
+    const activationShell = document.getElementById('activationShell');
     const authShell = document.getElementById('authShell');
     const appShell = document.getElementById('appShell');
+    const activationStatusPill = document.getElementById('activationStatusPill');
+    const activationDeviceId = document.getElementById('activationDeviceId');
+    const activationMessage = document.getElementById('activationMessage');
+    const activationSelectedFile = document.getElementById('activationSelectedFile');
+    const activationSummaryCard = document.getElementById('activationSummaryCard');
+    const activationLicenseId = document.getElementById('activationLicenseId');
+    const activationIssuedTo = document.getElementById('activationIssuedTo');
+    const activationIssuedAt = document.getElementById('activationIssuedAt');
+    const activationExpiresAt = document.getElementById('activationExpiresAt');
+    const btnCopyDeviceId = document.getElementById('btnCopyDeviceId');
+    const btnImportLicense = document.getElementById('btnImportLicense');
+    const btnRefreshActivation = document.getElementById('btnRefreshActivation');
     const btnAuthTabLogin = document.getElementById('btnAuthTabLogin');
     const btnAuthTabSignup = document.getElementById('btnAuthTabSignup');
     const loginForm = document.getElementById('loginForm');
@@ -239,6 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let notifications = [];
     let unreadNotificationCount = 0;
     let currentView = 'home';
+    let localPDFHistory = [];
+    let licenseState = null;
+    let licensingUnlocked = false;
+    let desktopRuntimeReady = false;
     const DEFAULT_AREA = 'Residential Society';
     const SUPER_ADMIN_ROLE = 'super_admin';
     const OPERATOR_ROLE = 'operator';
@@ -778,6 +795,156 @@ document.addEventListener('DOMContentLoaded', () => {
         if (authShell) authShell.classList.add('auth-hidden');
         if (appShell) appShell.classList.remove('auth-locked');
         document.body.classList.remove('auth-open');
+    }
+
+    function formatActivationDate(value) {
+        if (!value) return 'Lifetime';
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleString();
+    }
+
+    function setActivationMessage(message, tone = 'muted') {
+        if (!activationMessage) return;
+        activationMessage.textContent = message || 'Activation status unavailable.';
+        activationMessage.className = 'license-message';
+        activationMessage.classList.add(
+            tone === 'success' ? 'license-message-success'
+                : tone === 'error' ? 'license-message-error'
+                    : 'license-message-muted'
+        );
+    }
+
+    function renderActivationState(state = {}) {
+        licenseState = state;
+        licensingUnlocked = state.isActivated === true;
+
+        if (activationDeviceId) {
+            activationDeviceId.textContent = state.deviceId || 'Unavailable';
+        }
+
+        if (activationStatusPill) {
+            activationStatusPill.textContent = licensingUnlocked ? 'Activated' : 'Locked';
+            activationStatusPill.classList.toggle('is-success', licensingUnlocked);
+            activationStatusPill.classList.toggle('is-error', !licensingUnlocked && state.status === 'invalid');
+        }
+
+        setActivationMessage(
+            state.message || (licensingUnlocked ? 'Activation successful.' : 'Import a valid license.dat to continue.'),
+            licensingUnlocked ? 'success' : state.status === 'invalid' ? 'error' : 'muted'
+        );
+
+        if (activationSummaryCard) {
+            activationSummaryCard.hidden = !state.license;
+        }
+        if (activationLicenseId) activationLicenseId.textContent = state.license?.licenseId || '-';
+        if (activationIssuedTo) activationIssuedTo.textContent = state.license?.issuedTo || 'Licensed machine';
+        if (activationIssuedAt) activationIssuedAt.textContent = formatActivationDate(state.license?.issuedAt) || '-';
+        if (activationExpiresAt) activationExpiresAt.textContent = state.license?.expiresAt ? formatActivationDate(state.license.expiresAt) : 'Lifetime';
+    }
+
+    function showActivationShell() {
+        if (activationShell) activationShell.classList.remove('license-shell-hidden');
+        if (authShell) authShell.classList.add('auth-hidden');
+        if (appShell) appShell.classList.add('auth-locked');
+        document.body.classList.add('license-open');
+    }
+
+    function hideActivationShell() {
+        if (activationShell) activationShell.classList.add('license-shell-hidden');
+        document.body.classList.remove('license-open');
+    }
+
+    async function copyActivationDeviceId() {
+        const deviceId = licenseState?.deviceId || activationDeviceId?.textContent || '';
+        if (!deviceId) {
+            setActivationMessage('Device ID is not ready yet. Try again in a moment.', 'error');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(deviceId);
+            setActivationMessage('Device ID copied. Send it to your GATIQ admin to generate license.dat.', 'success');
+        } catch (error) {
+            setActivationMessage(`Could not copy Device ID automatically: ${error.message}`, 'error');
+        }
+    }
+
+    async function initializeLicensedDesktopRuntime() {
+        if (desktopRuntimeReady) return;
+        await Promise.all([
+            initializeBackendRuntime(),
+            initializeUpdaterRuntime()
+        ]);
+        desktopRuntimeReady = true;
+        await restoreAuthenticatedSession();
+        getPDFHistoryAsync()
+            .then(() => {
+                syncQuickAreaFilterOptions();
+                renderQuickAccessResults();
+                renderDashboard();
+            })
+            .catch((error) => {
+                console.error('Deferred PDF history preload failed:', error);
+            });
+    }
+
+    async function refreshActivationState() {
+        if (!desktopBridge?.licensing) {
+            licensingUnlocked = true;
+            hideActivationShell();
+            await initializeLicensedDesktopRuntime();
+            return;
+        }
+
+        const state = await desktopBridge.licensing.getState();
+        renderActivationState(state);
+
+        if (state.isActivated) {
+            hideActivationShell();
+            await initializeLicensedDesktopRuntime();
+            return;
+        }
+
+        showActivationShell();
+    }
+
+    async function handleImportLicense() {
+        if (!desktopBridge?.licensing) {
+            setActivationMessage('Offline activation is available only inside the desktop application.', 'error');
+            return;
+        }
+
+        try {
+            setActivationMessage('Waiting for license file selection...', 'muted');
+            const selection = await desktopBridge.licensing.selectLicenseFile();
+            if (!selection || selection.canceled || !selection.filePath) {
+                setActivationMessage('License import was cancelled.', 'muted');
+                return;
+            }
+
+            if (activationSelectedFile) activationSelectedFile.textContent = selection.filePath;
+            setActivationMessage('Validating license.dat offline for this machine...', 'muted');
+            const state = await desktopBridge.licensing.activate({ filePath: selection.filePath });
+            renderActivationState(state);
+
+            if (!state.isActivated) {
+                showActivationShell();
+                return;
+            }
+
+            hideActivationShell();
+            await initializeLicensedDesktopRuntime();
+            showToast('GATIQ activated successfully on this machine.', 'success');
+        } catch (error) {
+            renderActivationState({
+                ...(licenseState || {}),
+                isActivated: false,
+                status: 'invalid',
+                message: error.message || 'License activation failed.'
+            });
+            showActivationShell();
+        }
     }
 
     async function applyAuthenticatedUser(user) {
@@ -1470,8 +1637,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.setTimeout(initializeGoogleAuth, 1200);
         updateCloudConnectionUI();
         purgeExpiredData();
-
-        restoreAuthenticatedSession();
     }
 
     init()
@@ -1610,10 +1775,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function init() {
         setActiveUserScope(null);
-        await Promise.all([
-            initializeBackendRuntime(),
-            initializeUpdaterRuntime()
-        ]);
 
         // Load saved settings
         const savedSociety = storageGet(SOCIETY_KEY);
@@ -1636,17 +1797,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initSyncStatus();
         updateScanButton();
         setupButtonMotion();
-        getPDFHistoryAsync()
-            .then(() => {
-                syncQuickAreaFilterOptions();
-                renderQuickAccessResults();
-                renderDashboard();
-            })
-            .catch((error) => {
-                console.error('Deferred PDF history preload failed:', error);
-            });
 
         // Event listeners
+        if (btnCopyDeviceId) btnCopyDeviceId.addEventListener('click', copyActivationDeviceId);
+        if (btnImportLicense) btnImportLicense.addEventListener('click', handleImportLicense);
+        if (btnRefreshActivation) btnRefreshActivation.addEventListener('click', refreshActivationState);
         registerBackendSettingsListeners();
         if (backendApiKeyToggle) backendApiKeyToggle.addEventListener('click', () => {
             togglePasswordFieldVisibility(
@@ -1940,6 +2095,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === whitelistModal) closeAnchoredModal(whitelistModal);
         });
         btnAddResident.addEventListener('click', handleAddResident);
+
+        await refreshActivationState();
     }
 
     function togglePasswordFieldVisibility(input, eyeOpen, eyeCrossed) {
@@ -3663,8 +3820,6 @@ document.addEventListener('DOMContentLoaded', () => {
             defaultArea: DEFAULT_AREA
         });
     }
-
-    let localPDFHistory = []; // Cache
 
     function getPDFHistory() {
         return Array.isArray(localPDFHistory) ? localPDFHistory : [];

@@ -15,6 +15,10 @@ uvicorn.err.log
 # Secrets
 .env
 *.env
+license.dat
+*.private.pem
+*.pfx
+desktop/licensing/private/
 
 # Python caches / environments
 __pycache__/

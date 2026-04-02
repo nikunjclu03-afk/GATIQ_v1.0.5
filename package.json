@@ -16,7 +16,7 @@
     "release:tag": "powershell -ExecutionPolicy Bypass -File ./desktop/release-tag.ps1",
     "build:brand": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' '.\\desktop\\generate_brand_assets.py'\"",
     "build:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/build-backend.ps1",
-    "validate:code": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' -m compileall '.\\GATIQ API\\app'; node --check '.\\js\\domain-service.js'; node --check '.\\js\\backend-orchestrator.js'; node --check '.\\js\\auth-service.js'; node --check '.\\js\\quick-viewer-service.js'; node --check '.\\js\\plate-scanner.js'; node --check '.\\js\\app.js'\"",
+    "validate:code": "powershell -ExecutionPolicy Bypass -Command \"& '.\\GATIQ API\\venv\\Scripts\\python.exe' -m compileall '.\\GATIQ API\\app'; node --check '.\\desktop\\licensing\\constants.js'; node --check '.\\desktop\\licensing\\hwid.js'; node --check '.\\desktop\\licensing\\license-service.js'; node --check '.\\desktop\\main.js'; node --check '.\\desktop\\preload.js'; node --check '.\\js\\domain-service.js'; node --check '.\\js\\backend-orchestrator.js'; node --check '.\\js\\auth-service.js'; node --check '.\\js\\quick-viewer-service.js'; node --check '.\\js\\plate-scanner.js'; node --check '.\\js\\app.js'\"",
     "validate:backend": "powershell -ExecutionPolicy Bypass -File ./desktop/validate-backend-build.ps1",
     "validate:release": "powershell -ExecutionPolicy Bypass -File ./desktop/validate-release.ps1",
     "dist": "npm run build:brand && npm run build:backend && electron-builder --win nsis",
@@ -37,7 +37,11 @@
       "js/**/*",
       "img/**/*",
       "desktop/**/*",
-      "!desktop/build-backend.ps1"
+      "!desktop/build-backend.ps1",
+      "!desktop/licensing/private/**/*",
+      "!desktop/licensing/**/*.private.pem",
+      "!desktop/licensing/**/*private*.key",
+      "!desktop/licensing/**/*.pfx"
     ],
     "extraResources": [
       {
