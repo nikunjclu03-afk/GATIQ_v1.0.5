@@ -68,6 +68,15 @@ function ensureIsoDate(value, fieldName) {
   return date.toISOString();
 }
 
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return '';
+}
+
 function createLicenseService({ app, dialog, safeStorage }) {
   let cachedState = null;
 
@@ -141,12 +150,12 @@ function createLicenseService({ app, dialog, safeStorage }) {
       throw new Error('License payload is invalid.');
     }
 
-    const product = String(payload.product || payload.productName || '').trim();
-    const hwid = String(payload.hwid || payload.deviceId || '').trim();
-    const licenseId = String(payload.licenseId || payload.id || '').trim();
-    const issuedAt = ensureIsoDate(payload.issuedAt, 'issuedAt');
-    const expiresAt = ensureIsoDate(payload.expiresAt, 'expiresAt');
-    const schemaVersion = Number(payload.schemaVersion || LICENSE_SCHEMA_VERSION);
+    const product = String(firstDefined(payload.product, payload.productName, payload.product_name)).trim();
+    const hwid = String(firstDefined(payload.hwid, payload.deviceId, payload.device_id)).trim();
+    const licenseId = String(firstDefined(payload.licenseId, payload.license_id, payload.id)).trim();
+    const issuedAt = ensureIsoDate(firstDefined(payload.issuedAt, payload.issued_at), 'issuedAt');
+    const expiresAt = ensureIsoDate(firstDefined(payload.expiresAt, payload.expires_at), 'expiresAt');
+    const schemaVersion = Number(firstDefined(payload.schemaVersion, payload.schema_version, LICENSE_SCHEMA_VERSION));
 
     if (!product) throw new Error('License product is missing.');
     if (product !== PRODUCT_NAME) throw new Error(`License product mismatch. Expected ${PRODUCT_NAME}.`);
@@ -169,8 +178,21 @@ function createLicenseService({ app, dialog, safeStorage }) {
       licenseId,
       issuedAt,
       expiresAt,
-      issuedTo: String(payload.issuedTo || payload.customerName || '').trim()
+      issuedTo: String(firstDefined(payload.issuedTo, payload.issued_to, payload.customerName, payload.customer_name)).trim()
     };
+  }
+
+  function verifyDetachedSignature(payloadText, publicKey, signatureBuffer) {
+    const publicKeyObject = crypto.createPublicKey(publicKey);
+    const keyType = publicKeyObject.asymmetricKeyType;
+
+    // Ed25519/Ed448 use a pure signature scheme and must not be forced through RSA hashing modes.
+    if (keyType === 'ed25519' || keyType === 'ed448') {
+      return crypto.verify(null, Buffer.from(payloadText, 'utf8'), publicKeyObject, signatureBuffer);
+    }
+
+    // Preserve RSA compatibility for existing generators that sign canonical JSON with SHA-256.
+    return crypto.verify('RSA-SHA256', Buffer.from(payloadText, 'utf8'), publicKeyObject, signatureBuffer);
   }
 
   function verifyLicenseText(rawText, machineIdentity) {
@@ -185,12 +207,7 @@ function createLicenseService({ app, dialog, safeStorage }) {
     const signatureBuffer = bufferFromBase64(signature, 'License signature');
 
     // Verify only with the embedded public key. The private signing key never ships with the app.
-    const isValidSignature = crypto.verify(
-      'RSA-SHA256',
-      Buffer.from(payloadText, 'utf8'),
-      publicKey,
-      signatureBuffer
-    );
+    const isValidSignature = verifyDetachedSignature(payloadText, publicKey, signatureBuffer);
 
     if (!isValidSignature) {
       throw new Error('Digital signature verification failed.');
