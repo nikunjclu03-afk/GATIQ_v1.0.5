@@ -35,10 +35,9 @@ def get_analytics_summary(
     )
     dt_to = _parse_date(date_to) or datetime.datetime.utcnow()
 
-    # Base log query
     log_q = db.query(models.VehicleLog).filter(
-        models.VehicleLog.created_at >= dt_from,
-        models.VehicleLog.created_at <= dt_to,
+        models.VehicleLog.timestamp >= dt_from,
+        models.VehicleLog.timestamp <= dt_to,
     )
     if area:
         log_q = log_q.filter(models.VehicleLog.area == area)
@@ -103,8 +102,8 @@ def get_analytics_summary(
     # Daily breakdown
     day_counts = {}
     for l in all_logs:
-        if l.created_at:
-            day_key = l.created_at.strftime("%Y-%m-%d")
+        if l.timestamp:
+            day_key = l.timestamp.strftime("%Y-%m-%d")
             if day_key not in day_counts:
                 day_counts[day_key] = {"date": day_key, "entries": 0, "exits": 0}
             if (l.entry_exit or "").lower() in ("entry", "in"):

@@ -1148,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getGoogleClientId() {
-        return String(googleClientIdInput?.value || localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '').trim();
+        return '77810250916-frl8huf1s6mto5d9c0aa71fcqlu8ca88.apps.googleusercontent.com';
     }
 
     function isGoogleAuthOriginSupported() {
@@ -1426,7 +1426,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleCloudConnect() {
-        const clientId = String(googleClientIdInput?.value || '').trim();
+        const clientId = getGoogleClientId();
         if (!clientId) {
             showToast('⚠️ Please provide a Google Client ID in settings first.', 'error');
             return;

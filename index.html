@@ -1340,7 +1340,7 @@
                 <small style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* GATIQ backend will pull frames directly from this local stream URL.</small>
             </div>
 
-            <div class="form-group" style="margin-top: 1rem;">
+            <div class="form-group" style="margin-top: 1rem; display: none;">
                 <label>GATIQ Backend API Base URL</label>
                 <input type="text" class="form-input" id="backendApiUrl"
                     placeholder="http://127.0.0.1:8001"
@@ -1348,7 +1348,7 @@
                 <small style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* Desktop mode manages this local backend automatically. Browser mode can still use a custom local GATIQ API.</small>
             </div>
 
-            <div class="form-group" style="margin-top: 0.75rem;">
+            <div class="form-group" style="margin-top: 0.75rem; display: none;">
                 <label>GATIQ Backend API Key</label>
                 <div class="api-key-group" style="width: 100%;">
                     <input type="password" class="api-key-field" id="backendApiKeyInput"
@@ -1375,7 +1375,7 @@
                 <small style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 4px;">* In desktop mode this key is stored in the local app runtime. In browser mode it must match your backend `GATIQ_API_KEY`.</small>
             </div>
 
-            <div class="form-group settings-grid-full" style="margin-top: 0.75rem;">
+            <div class="form-group settings-grid-full" style="margin-top: 0.75rem; display: none;">
                 <label>Google OAuth Client ID</label>
                 <input type="text" class="form-input" id="googleClientIdInput"
                     placeholder="Paste your Google Web Client ID here..."

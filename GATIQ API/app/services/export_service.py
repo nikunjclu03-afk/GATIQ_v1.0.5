@@ -54,9 +54,9 @@ def create_csv_export(
         dt_from = _parse_date(request.date_from)
         dt_to = _parse_date(request.date_to)
         if dt_from:
-            query = query.filter(models.VehicleLog.created_at >= dt_from)
+            query = query.filter(models.VehicleLog.timestamp >= dt_from)
         if dt_to:
-            query = query.filter(models.VehicleLog.created_at <= dt_to)
+            query = query.filter(models.VehicleLog.timestamp <= dt_to)
         if request.area:
             query = query.filter(models.VehicleLog.area == request.area)
         if request.gate_no:
@@ -64,7 +64,7 @@ def create_csv_export(
         if request.direction:
             query = query.filter(models.VehicleLog.entry_exit == request.direction)
 
-        logs = query.order_by(models.VehicleLog.created_at.desc()).all()
+        logs = query.order_by(models.VehicleLog.timestamp.desc()).all()
 
         # Generate CSV content
         output = io.StringIO()
@@ -88,7 +88,7 @@ def create_csv_export(
                 log.driver_name or "",
                 log.driver_phone or "",
                 log.status or "",
-                log.created_at.strftime("%Y-%m-%d %H:%M:%S") if log.created_at else "",
+                log.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log.timestamp else "",
             ])
 
         # Save to exports directory
