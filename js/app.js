@@ -2740,6 +2740,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (uniqueReadableDetections.length > 0) {
                 await LogManager.loadFromServer(activeArea);
                 renderTable();
+                await syncAutoPDFSnapshot(activeArea);
                 trackReportJobs(result.reportJobIds);
                 syncToGatiqAPI(activeArea).catch((err) => console.error('Async sync failed:', err));
                 showToast(

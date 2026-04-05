@@ -1,15 +1,14 @@
 const DeploymentConfig = {
     'Residential Society': {
         columns: [
-            { id: 'srNo', label: 'Sr. No.' },
+            { id: 'srNo', label: 'No.' },
             { id: 'gateNo', label: 'Gate No.' },
             { id: 'vehicleNo', label: 'Vehicle No.' },
-            { id: 'vehicleType', label: 'Vehicle Category' },
-            { id: 'date', label: 'Date' },
-            { id: 'entryExit', label: 'Entry / Exit' },
-            { id: 'time', label: 'Time' },
+            { id: 'entryExitTime', label: 'Date / Time' },
             { id: 'purpose', label: 'Purpose of Visit' },
-            { id: 'tagging', label: 'Tagging' }
+            { id: 'tagging', label: 'Tagging' },
+            { id: 'entryExit', label: 'Entry / Exit' },
+            { id: 'vehicleType', label: 'Vehicle Category' }
         ],
         purposeOptions: ['Resident', 'Guest', 'Delivery Guy', 'Cab', 'Maintenance', 'Service', 'Staff', 'Other'],
         taggingOptions: ['Resident', 'Non-Resident'],
