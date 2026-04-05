@@ -909,11 +909,20 @@
                         <div class="panel-title" style="display:flex;align-items:center;gap:0.4rem">
                             <i data-lucide="list-checks" style="width:18px;height:18px;"></i> Gate Workflow
                         </div>
-                        <div class="log-stats" style="display:flex; gap:0.5rem; align-items:center;">
+                        <div class="log-stats" style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
                             <span class="stat-badge" style="background:#fff1f2; border-color:#f19aa0;">Pending: <span class="num text-accent" id="pendingReviewCount" style="color:#d71920;">0</span></span>
                             <span class="stat-badge">Today's Total: <span class="num" id="totalEntries">0</span></span>
                             <span style="display:none;" id="entryCount">0</span>
                             <span style="display:none;" id="exitCount">0</span>
+                            <button class="btn-export pdf" id="btnExportPDF" title="Export PDF" disabled style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.7rem;font-size:0.72rem;border-radius:20px;border:1px solid var(--border-accent);background:var(--bg-glass-strong);color:var(--text-primary);cursor:pointer;transition:all 0.2s ease;">
+                                <i data-lucide="file-text" style="width:13px;height:13px;"></i>
+                                <span id="pdfBtnText">Export PDF</span>
+                                <span id="pdfSpinner" class="samsung-loader samsung-loader--inline" style="display:none;width:12px;height:12px;"></span>
+                            </button>
+                            <button class="btn-export svg" id="btnExportSVG" title="Export SVG" disabled style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.7rem;font-size:0.72rem;border-radius:20px;border:1px solid var(--border-accent);background:var(--bg-glass-strong);color:var(--text-primary);cursor:pointer;transition:all 0.2s ease;">
+                                <i data-lucide="image" style="width:13px;height:13px;"></i>
+                                <span id="svgBtnText">Export SVG</span>
+                            </button>
                         </div>
                     </div>
                     
@@ -1636,6 +1645,7 @@
     <script src="js/log-manager.js"></script>
     <script src="js/logo-data.js"></script>
     <script src="js/pdf-export.js"></script>
+    <script src="js/svg-export.js"></script>
     <script src="js/domain-service.js"></script>
     <script src="js/backend-orchestrator.js"></script>
     <script src="js/auth-service.js"></script>

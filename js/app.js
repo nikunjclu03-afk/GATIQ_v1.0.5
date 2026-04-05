@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const exitCount = document.getElementById('exitCount');
 
     const btnExportPDF = document.getElementById('btnExportPDF');
+    const btnExportSVG = document.getElementById('btnExportSVG');
     const btnQuickAccess = document.getElementById('btnQuickAccess');
     const quickDrawer = document.getElementById('quickDrawer');
     const quickDrawerBackdrop = document.getElementById('quickDrawerBackdrop');
@@ -1872,6 +1873,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnExportPDF) {
             btnExportPDF.addEventListener('click', handleExportPDF);
         }
+        if (btnExportSVG) {
+            btnExportSVG.addEventListener('click', handleExportSVG);
+        }
         if (btnQuickAccess) {
             btnQuickAccess.addEventListener('click', () => {
                 if (quickDrawer) quickDrawer.classList.add('open');
@@ -2825,6 +2829,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnExportPDF) {
             btnExportPDF.disabled = entries.length === 0;
         }
+        if (btnExportSVG) {
+            btnExportSVG.disabled = entries.length === 0;
+        }
 
         // Toggle empty state
         emptyState.style.display = entries.length === 0 ? '' : 'none';
@@ -2999,7 +3006,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const base64Content = reader.result.split(',')[1];
                         try {
                             await window.electron.invoke('cloud:upload-pdf', {
-                                clientId: String(googleClientIdInput?.value || '').trim(),
+                                clientId: getGoogleClientId(),
                                 fileName: blobPayload.filename,
                                 mimeType: 'application/pdf',
                                 bodyBase64: base64Content
@@ -3035,6 +3042,39 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnExportPDF) {
                 btnExportPDF.disabled = entries.length === 0;
             }
+        }
+    }
+
+    // ---- Export SVG ----
+    async function handleExportSVG() {
+        const selectedArea = getActiveArea();
+        const entries = getScopedEntries(selectedArea);
+        if (entries.length === 0) {
+            showToast('<i data-lucide="alert-triangle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px"></i> No entries to export.', 'error');
+            return;
+        }
+
+        try {
+            const selectedSociety = societyInput.value.trim() || 'N/A';
+            if (btnExportSVG) btnExportSVG.disabled = true;
+            const svgBtnText = document.getElementById('svgBtnText');
+            if (svgBtnText) svgBtnText.textContent = 'Downloading';
+
+            showToast('<i data-lucide="image" style="width:14px;height:14px;vertical-align:middle;margin-right:6px"></i> Generating GATIQ SVG...', 'success');
+            SVGExport.exportSVG({
+                societyName: selectedSociety,
+                gateId: gateSelect.value,
+                entries: entries,
+                area: selectedArea
+            });
+
+            showToast('<i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px"></i> SVG downloaded successfully!', 'success');
+        } catch (err) {
+            showToast(`<i data-lucide="x-circle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px"></i> ${err.message}`, 'error');
+        } finally {
+            const svgBtnText = document.getElementById('svgBtnText');
+            if (svgBtnText) svgBtnText.textContent = 'Export SVG';
+            if (btnExportSVG) btnExportSVG.disabled = entries.length === 0;
         }
     }
 
