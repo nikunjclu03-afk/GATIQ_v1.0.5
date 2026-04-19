@@ -30,18 +30,7 @@ const GatiqDomain = (() => {
         return String(value || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
     }
 
-    function enrichDetectionWithWhitelist({ detection, whitelist = [] }) {
-        const normalizedPlate = normalizePlateKey(detection?.plateNumber);
-        const residentMatch = normalizedPlate
-            ? whitelist.find(r => r.status === 'Active' && normalizePlateKey(r.vehicle) === normalizedPlate)
-            : null;
 
-        return {
-            ...detection,
-            finalTagging: residentMatch ? 'Resident' : detection.tagging,
-            residentMatch
-        };
-    }
 
     function buildScanSummary(detections = []) {
         if (!Array.isArray(detections) || detections.length === 0) {
@@ -57,13 +46,13 @@ const GatiqDomain = (() => {
             return {
                 plateLabel: item.plateNumber,
                 directionLabel: `Direction: ${item.direction}`,
-                taggingLabel: `Tagging: ${item.finalTagging}${item.residentMatch ? ' (Whitelist)' : ''}`,
+                taggingLabel: `Tagging: ${item.tagging || 'Unknown'}`,
                 vehicleTypeLabel: item.vehicleType || 'Vehicle'
             };
         }
 
         const distinctDirections = [...new Set(detections.map(item => item.direction))];
-        const distinctTags = [...new Set(detections.map(item => item.finalTagging))];
+        const distinctTags = [...new Set(detections.map(item => item.tagging || 'Unknown'))];
 
         return {
             plateLabel: `${detections.length} VEHICLES DETECTED`,
@@ -156,7 +145,7 @@ const GatiqDomain = (() => {
         getVisiblePDFHistory,
         enforceAreaAccess,
         normalizePlateKey,
-        enrichDetectionWithWhitelist,
+
         buildScanSummary,
         getFacilityLabel,
         getReportPageCount,

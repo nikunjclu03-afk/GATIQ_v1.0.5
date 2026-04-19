@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
     }
 
-    async function waitForBackendJob(jobId, timeoutMs = 60000) {
+    async function waitForBackendJob(jobId, timeoutMs = 120000) {
         const startedAt = Date.now();
         while (true) {
             const job = await fetchAPI(`/jobs/${encodeURIComponent(jobId)}`);
@@ -355,11 +355,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    let cachedWhitelist = [];
+
     // ---- Whitelist API ----
     async function fetchWhitelist() {
         try {
             const data = await fetchAPI('/whitelist');
-            return data.map(r => ({
+            cachedWhitelist = data.map(r => ({
                 id: r.id,
                 name: r.owner_name,
                 flat: r.flat_no,
@@ -368,10 +370,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 category: r.category,
                 status: r.status
             }));
+            return cachedWhitelist;
         } catch (err) {
             console.error('Whitelist fetch failed:', err);
-            return [];
+            return cachedWhitelist;
         }
+    }
+
+    function getWhitelist() {
+        return cachedWhitelist;
     }
 
     async function saveWhitelistAPI(entry) {
@@ -1784,6 +1791,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedSociety) societyInput.value = savedSociety;
         if (savedGate) gateSelect.value = savedGate;
         if (savedDeployment && deploymentAreaSelect) deploymentAreaSelect.value = savedDeployment;
+
+        fetchWhitelist();
         if (googleClientIdInput) googleClientIdInput.value = localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '';
 
         // Render existing log
@@ -2622,12 +2631,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return GatiqDomain.normalizePlateKey(value);
     }
 
-    function enrichDetectionWithWhitelist(detection) {
-        return GatiqDomain.enrichDetectionWithWhitelist({
-            detection,
-            whitelist: getWhitelist()
-        });
-    }
 
     function buildScanSummary(detections) {
         return GatiqDomain.buildScanSummary(detections);
@@ -2718,7 +2721,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const plateKey = normalizePlateKey(detection.plateNumber);
                 if (!plateKey || plateKey === 'UNREADABLE' || seenPlates.has(plateKey)) return;
                 seenPlates.add(plateKey);
-                uniqueReadableDetections.push(enrichDetectionWithWhitelist(detection));
+                uniqueReadableDetections.push(detection);
             });
 
             const summary = buildScanSummary(uniqueReadableDetections);
@@ -2838,8 +2841,8 @@ document.addEventListener('DOMContentLoaded', () => {
         emptyState.style.display = entries.length === 0 ? '' : 'none';
         document.getElementById('logTable').style.display = entries.length === 0 ? 'none' : '';
 
-        // Render rows (reverse so newest is at the top)
-        logTableBody.innerHTML = [...entries].reverse().map(entry => {
+        // Render rows (newest is already at the top from SQL backend)
+        logTableBody.innerHTML = entries.map(entry => {
             let tr = `<tr data-id="${entry.id}">`;
             currentConfig.columns.forEach(col => {
                 if (col.id === 'srNo') tr += `<td>${entry.srNo}</td>`;
@@ -4144,4 +4147,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
 

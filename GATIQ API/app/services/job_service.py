@@ -514,15 +514,38 @@ def _process_scan_job(db: Session, job: models.JobQueue) -> Dict[str, Any]:
         db.commit()
         db.refresh(scan_result)
 
-        # ── Phase 1: Create ScanReview instead of direct VehicleLog ──
+        # ── Bypass Review Queue and directly create VehicleLog ──
         if plate_number != "UNREADABLE":
-            review = review_service.create_review_from_scan(
-                db,
-                scan_job=scan_job,
-                scan_result=scan_result,
-                vehicle=enriched,
+            norm_plate = "".join(filter(str.isalnum, plate_number.upper()))
+            whitelist_rows = db.query(models.Whitelist).filter(models.Whitelist.status == "Active").all()
+            is_resident = any("".join(filter(str.isalnum, (w.vehicle_no or "").upper())) == norm_plate for w in whitelist_rows)
+            
+            final_purpose = "Resident" if is_resident else "Other"
+            final_tagging = "Resident" if is_resident else "Non-Resident"
+
+            log_create = schemas.VehicleLogCreate(
+                site_id=scan_job.site_id,
+                gate_id=scan_job.gate_id,
+                device_id=scan_job.device_row_id,
+                user_id=scan_job.user_id,
+                vehicle_no=plate_number or "UNKNOWN",
+                vehicle_type=vehicle.vehicle_type or "Car",
+                gate_no=scan_job.gate_no or "Gate 1",
+                area=scan_job.area or "Residential",
+                entry_exit=vehicle.direction or "Entry",
+                purpose=final_purpose,
+                tagging=final_tagging,
+                vehicle_capacity=scan_job.vehicle_capacity,
+                dock_no=scan_job.dock_no,
+                consignment_no=scan_job.consignment_no,
+                driver_name=scan_job.driver_name,
+                driver_phone=scan_job.driver_phone,
+                status=vehicle.direction or "Entry"
             )
-            review_ids.append(review.id)
+            log_entry = log_service.create_vehicle_log(log_create, db)
+            log_ids.append(log_entry.id)
+            enriched["purpose"] = final_purpose
+            enriched["tagging"] = final_tagging
 
         enriched_vehicles.append(enriched)
 

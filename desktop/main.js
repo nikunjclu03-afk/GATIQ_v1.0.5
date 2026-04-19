@@ -1,25 +1,21 @@
-const { app, BrowserWindow, dialog, ipcMain, safeStorage, session, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const http = require('http');
-const https = require('https');
 const { spawn } = require('child_process');
 const { createLicenseService } = require('./licensing/license-service');
 
 const BACKEND_HOST = '127.0.0.1';
 const BACKEND_PORT = 8001;
-const OAUTH_REDIRECT_PORT = 58000;
 const DEFAULT_BASE_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}`;
-const AUTO_UPDATE_CHECK_DELAY_MS = 10000;
 
 let mainWindow = null;
 let backendProcess = null;
 let backendPollTimer = null;
 let runtimePaths = null;
 let updaterConfigured = false;
-let pendingGoogleAuth = null;
 let licenseService = null;
 let backendStatus = {
   state: 'stopped',
@@ -51,348 +47,6 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function base64UrlEncode(buffer) {
-  return Buffer.from(buffer)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-
-function createPkceChallenge(verifier) {
-  return base64UrlEncode(crypto.createHash('sha256').update(verifier).digest());
-}
-
-function decodeJwtPayload(token) {
-  const parts = String(token || '').split('.');
-  if (parts.length < 2) {
-    throw new Error('Google ID token was missing a payload.');
-  }
-  const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4);
-  return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
-}
-
-function requestJson(urlString, options = {}, body = null) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(urlString, options, (response) => {
-      let data = '';
-      response.on('data', (chunk) => {
-        data += chunk;
-      });
-      response.on('end', () => {
-        let parsed = {};
-        try {
-          parsed = JSON.parse(data || '{}');
-        } catch {
-          parsed = {};
-        }
-
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          resolve(parsed);
-          return;
-        }
-
-        reject(new Error(parsed.error_description || parsed.error || `HTTP ${response.statusCode}`));
-      });
-    });
-
-    req.on('error', reject);
-    if (body) req.write(body);
-    req.end();
-  });
-}
-
-async function exchangeGoogleAuthCode({ clientId, code, codeVerifier, redirectUri }) {
-  const body = new URLSearchParams({
-    client_id: clientId,
-    code,
-    code_verifier: codeVerifier,
-    grant_type: 'authorization_code',
-    redirect_uri: redirectUri
-  }).toString();
-
-  return requestJson(
-    'https://oauth2.googleapis.com/token',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(body)
-      }
-    },
-    body
-  );
-}
-
-async function fetchGoogleUserInfo(accessToken) {
-  return requestJson('https://openidconnect.googleapis.com/v1/userinfo', {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    }
-  });
-}
-
-function focusMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
-}
-
-function finishPendingGoogleAuth(error, payload = null) {
-  if (!pendingGoogleAuth) return;
-
-  const current = pendingGoogleAuth;
-  pendingGoogleAuth = null;
-
-  if (current.timeout) clearTimeout(current.timeout);
-  if (current.server) {
-    try {
-      current.server.close();
-    } catch {
-      // Ignore close errors.
-    }
-  }
-
-  focusMainWindow();
-
-  if (error) {
-    current.reject(error);
-    return;
-  }
-
-  // If we have an access token, we can perform cloud actions in main process
-  if (payload && payload.tokens) {
-    saveCloudCredentials(payload.tokens);
-  }
-
-  current.resolve(payload);
-}
-
-async function startGoogleDesktopAuth({ clientId, action }) {
-  const normalizedClientId = String(clientId || '').trim();
-  const normalizedAction = ['signup', 'login', 'cloud_connect'].includes(action) ? action : 'login';
-
-  if (!normalizedClientId) {
-    throw new Error('Google OAuth Client ID is required.');
-  }
-
-  if (pendingGoogleAuth) {
-    throw new Error('A Google sign-in flow is already in progress.');
-  }
-
-  return new Promise((resolve, reject) => {
-    const server = http.createServer(async (request, response) => {
-      try {
-        const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
-        const code = requestUrl.searchParams.get('code');
-        const state = requestUrl.searchParams.get('state');
-        const error = requestUrl.searchParams.get('error');
-
-        if (error) {
-          response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          response.end('<html><body style="font-family:Segoe UI, sans-serif;padding:32px;"><h2>Google sign-in cancelled</h2><p>You can close this tab and return to GATIQ Desktop.</p></body></html>');
-          finishPendingGoogleAuth(new Error(`Google authorization failed: ${error}`));
-          return;
-        }
-
-        if (!code || !state || !pendingGoogleAuth || state !== pendingGoogleAuth.state) {
-          response.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-          response.end('<html><body style="font-family:Segoe UI, sans-serif;padding:32px;"><h2>Invalid sign-in response</h2><p>Please return to GATIQ Desktop and try again.</p></body></html>');
-          finishPendingGoogleAuth(new Error('Google authorization response was invalid or expired.'));
-          return;
-        }
-
-        const tokenPayload = await exchangeGoogleAuthCode({
-          clientId: pendingGoogleAuth.clientId,
-          code,
-          codeVerifier: pendingGoogleAuth.codeVerifier,
-          redirectUri: pendingGoogleAuth.redirectUri
-        });
-
-        const profile = tokenPayload.id_token
-          ? decodeJwtPayload(tokenPayload.id_token)
-          : await fetchGoogleUserInfo(tokenPayload.access_token);
-
-        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        response.end('<html><body style="font-family:Segoe UI, sans-serif;padding:32px;"><h2>Google sign-in complete</h2><p>You can close this tab. GATIQ Desktop will continue automatically.</p></body></html>');
-
-        finishPendingGoogleAuth(null, {
-          action: pendingGoogleAuth.action,
-          profile,
-          tokens: {
-            access_token: tokenPayload.access_token,
-            refresh_token: tokenPayload.refresh_token
-          }
-        });
-      } catch (error) {
-        response.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
-        response.end('<html><body style="font-family:Segoe UI, sans-serif;padding:32px;"><h2>Google sign-in failed</h2><p>Return to GATIQ Desktop and try again.</p></body></html>');
-        finishPendingGoogleAuth(error);
-      }
-    });
-
-    server.listen(OAUTH_REDIRECT_PORT, '127.0.0.1', async () => {
-      const redirectUri = `http://127.0.0.1:${OAUTH_REDIRECT_PORT}/oauth2callback`;
-      const codeVerifier = base64UrlEncode(crypto.randomBytes(32));
-      const state = base64UrlEncode(crypto.randomBytes(24));
-      const codeChallenge = createPkceChallenge(codeVerifier);
-      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-
-      authUrl.searchParams.set('client_id', normalizedClientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('response_type', 'code');
-      const baseScope = 'openid email profile';
-      const cloudScope = ' https://www.googleapis.com/auth/drive.file';
-      
-      // Request access_type=offline to get a refresh token for cloud sync
-      authUrl.searchParams.set('access_type', 'offline');
-      authUrl.searchParams.set('scope', normalizedAction === 'cloud_connect' ? baseScope + cloudScope : baseScope);
-      authUrl.searchParams.set('prompt', 'consent select_account');
-      authUrl.searchParams.set('code_challenge', codeChallenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-      authUrl.searchParams.set('state', state);
-
-      pendingGoogleAuth = {
-        action: normalizedAction,
-        clientId: normalizedClientId,
-        codeVerifier,
-        redirectUri,
-        resolve,
-        reject,
-        server,
-        state,
-        timeout: setTimeout(() => {
-          finishPendingGoogleAuth(new Error('Google sign-in timed out. Please try again.'));
-        }, 5 * 60 * 1000)
-      };
-
-      try {
-        await shell.openExternal(authUrl.toString(), { activate: true });
-      } catch (error) {
-        finishPendingGoogleAuth(new Error(`Could not open browser for Google sign-in: ${error.message}`));
-      }
-    });
-
-    server.on('error', (error) => {
-      reject(new Error(`Could not start Google sign-in callback server: ${error.message}`));
-    });
-  });
-}
-
-function getCloudCredsFile() {
-  return path.join(getRuntimePaths().configDir, 'cloud.json');
-}
-
-function saveCloudCredentials(tokens) {
-  try {
-    const payload = {};
-    if (safeStorage.isEncryptionAvailable()) {
-      payload.rt = safeStorage.encryptString(tokens.refresh_token || '').toString('base64');
-      payload.at = safeStorage.encryptString(tokens.access_token || '').toString('base64');
-    } else {
-      payload.rt = tokens.refresh_token;
-      payload.at = tokens.access_token;
-    }
-    fs.writeFileSync(getCloudCredsFile(), JSON.stringify(payload));
-  } catch (e) {
-    console.error('Failed to save cloud credentials:', e);
-  }
-}
-
-function loadCloudCredentials() {
-  try {
-    const file = getCloudCredsFile();
-    if (!fs.existsSync(file)) return null;
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-    let rt = '', at = '';
-    if (safeStorage.isEncryptionAvailable()) {
-      if (raw.rt) rt = safeStorage.decryptString(Buffer.from(raw.rt, 'base64'));
-      if (raw.at) at = safeStorage.decryptString(Buffer.from(raw.at, 'base64'));
-    } else {
-      rt = raw.rt;
-      at = raw.at;
-    }
-    return { refresh_token: rt, access_token: at };
-  } catch (e) {
-    return null;
-  }
-}
-
-async function refreshCloudAccessToken(clientId) {
-  const creds = loadCloudCredentials();
-  if (!creds || !creds.refresh_token) throw new Error('No refresh token available');
-
-  const body = new URLSearchParams({
-    client_id: clientId,
-    refresh_token: creds.refresh_token,
-    grant_type: 'refresh_token'
-  }).toString();
-
-  const tokens = await requestJson('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  }, body);
-
-  saveCloudCredentials({ ...creds, access_token: tokens.access_token });
-  return tokens.access_token;
-}
-
-async function uploadToDrive({ clientId, fileName, mimeType, bodyBase64 }) {
-  let at = (loadCloudCredentials() || {}).access_token;
-  if (!at) throw new Error('Not connected to Google Cloud');
-
-  // Try metadata fetch to check token validity
-  try {
-    await requestJson('https://www.googleapis.com/drive/v3/about?fields=user', {
-      headers: { Authorization: `Bearer ${at}` }
-    });
-  } catch {
-    at = await refreshCloudAccessToken(clientId);
-  }
-
-  // 1. Ensure GATIQ_Backups folder exists
-  const folderSearch = await requestJson('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent("name = 'GATIQ_Backups' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"), {
-    headers: { Authorization: `Bearer ${at}` }
-  });
-
-  let folderId = folderSearch.files?.[0]?.id;
-  if (!folderId) {
-    const folder = await requestJson('https://www.googleapis.com/drive/v3/files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${at}`, 'Content-Type': 'application/json' },
-    }, JSON.stringify({ name: 'GATIQ_Backups', mimeType: 'application/vnd.google-apps.folder' }));
-    folderId = folder.id;
-  }
-
-  // 2. Upload file
-  const metadata = {
-    name: fileName,
-    parents: [folderId]
-  };
-
-  const boundary = '-------GATIQ_BOUNDARY';
-  const delimiter = "\r\n--" + boundary + "\r\n";
-  const closeDelimiter = "\r\n--" + boundary + "--";
-
-  const body = Buffer.concat([
-    Buffer.from(delimiter + 'Content-Type: application/json\r\n\r\n' + JSON.stringify(metadata) + delimiter + 'Content-Type: ' + mimeType + '\r\n\r\n'),
-    Buffer.from(bodyBase64, 'base64'),
-    Buffer.from(closeDelimiter)
-  ]);
-
-  return requestJson('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${at}`,
-      'Content-Type': 'multipart/related; boundary=' + boundary,
-      'Content-Length': body.length
-    }
-  }, body);
-}
-
 function getRuntimePaths() {
   if (runtimePaths) return runtimePaths;
   const userData = app.getPath('userData');
@@ -402,12 +56,14 @@ function getRuntimePaths() {
     dataDir: path.join(userData, 'data'),
     logDir: path.join(userData, 'logs'),
     debugDir: path.join(userData, 'debug_scans'),
-    configFile: path.join(userData, 'config', 'backend.json')
+    configFile: path.join(userData, 'config', 'backend.json'),
+    exportDir: path.join(app.getPath('desktop'), 'GATIQ Exports')
   };
   ensureDir(runtimePaths.configDir);
   ensureDir(runtimePaths.dataDir);
   ensureDir(runtimePaths.logDir);
   ensureDir(runtimePaths.debugDir);
+  ensureDir(runtimePaths.exportDir);
   return runtimePaths;
 }
 
@@ -489,9 +145,9 @@ function setBackendStatus(patch) {
 
 function getDefaultUpdaterMessage() {
   if (!app.isPackaged) {
-    return 'Auto-update works in installed desktop builds published through GitHub Releases.';
+    return 'Manual update checks work in installed desktop builds published through GitHub Releases.';
   }
-  return `GATIQ ${app.getVersion()} is ready. Check for updates anytime.`;
+  return `GATIQ ${app.getVersion()} is ready. Updates are checked only when you click "Check For Updates".`;
 }
 
 function setUpdaterStatus(patch) {
@@ -636,6 +292,35 @@ function installDownloadedUpdate() {
   }
   autoUpdater.quitAndInstall(false, true);
   return true;
+}
+
+function getExportDirectory() {
+  return getRuntimePaths().exportDir;
+}
+
+function saveExportFile({ filename, bodyBase64, subdirectory = '' } = {}) {
+  const normalizedFilename = path.basename(String(filename || '').trim());
+  if (!normalizedFilename) {
+    throw new Error('Export file name is required.');
+  }
+  if (!bodyBase64) {
+    throw new Error('Export payload was empty.');
+  }
+
+  const rootDir = getExportDirectory();
+  const safeSubdirectory = String(subdirectory || '')
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+    .trim();
+  const targetDir = safeSubdirectory ? path.join(rootDir, safeSubdirectory) : rootDir;
+  ensureDir(targetDir);
+
+  const targetPath = path.join(targetDir, normalizedFilename);
+  fs.writeFileSync(targetPath, Buffer.from(bodyBase64, 'base64'));
+  return {
+    directory: targetDir,
+    path: targetPath,
+    filename: normalizedFilename
+  };
 }
 
 function createLogStream(fileName) {
@@ -954,24 +639,15 @@ function registerIpc() {
     await licenseService.assertLicensed();
     return { started: installDownloadedUpdate() };
   });
-  ipcMain.handle('auth:start-google', async (_event, payload) => {
+  ipcMain.handle('exports:get-directory', async () => {
     await licenseService.assertLicensed();
-    return startGoogleDesktopAuth(payload || {});
+    return {
+      directory: getExportDirectory()
+    };
   });
-  ipcMain.handle('cloud:upload-pdf', async (_event, payload) => {
+  ipcMain.handle('exports:save-file', async (_event, payload) => {
     await licenseService.assertLicensed();
-    return uploadToDrive(payload);
-  });
-  ipcMain.handle('cloud:get-status', async () => {
-    await licenseService.assertLicensed();
-    const creds = loadCloudCredentials();
-    return (creds && creds.refresh_token) ? { connected: true } : { connected: false };
-  });
-  ipcMain.handle('cloud:disconnect', async () => {
-    await licenseService.assertLicensed();
-    const file = getCloudCredsFile();
-    if (fs.existsSync(file)) fs.unlinkSync(file);
-    return { success: true };
+    return saveExportFile(payload || {});
   });
 }
 
@@ -991,19 +667,6 @@ async function startLicensedServicesIfNeeded() {
         message: `Managed backend startup failed: ${error.message}`
       });
     });
-  }
-
-  if (app.isPackaged) {
-    setTimeout(() => {
-      checkForAppUpdates().catch((error) => {
-        setUpdaterStatus({
-          state: 'error',
-          message: `Auto-update failed: ${error.message}`,
-          error: error.message,
-          percent: 0
-        });
-      });
-    }, AUTO_UPDATE_CHECK_DELAY_MS);
   }
 
   return licenseState;

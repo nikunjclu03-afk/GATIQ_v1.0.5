@@ -5,7 +5,7 @@
 
 const PlateScanner = (() => {
     const DEFAULT_POLL_INTERVAL_MS = 1500;
-    const DEFAULT_TIMEOUT_MS = 60000;
+    const DEFAULT_TIMEOUT_MS = 120000;
     const TERMINAL_STATES = new Set(['succeeded', 'failed', 'cancelled']);
 
     function formatPlateNumber(rawPlate) {

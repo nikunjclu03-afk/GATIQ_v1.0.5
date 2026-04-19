@@ -8,7 +8,7 @@ const SVGExport = (() => {
   /**
    * Generate SVG matching the selected Deployment Area
    */
-  function exportSVG({ societyName, gateId, entries, area }) {
+  function exportSVG({ societyName, gateId, entries, area, outputMode = 'save' }) {
     const config = window.DeploymentConfig && window.DeploymentConfig[area]
       ? window.DeploymentConfig[area]
       : window.DeploymentConfig['Residential Society'];
@@ -170,17 +170,18 @@ const SVGExport = (() => {
     // SVG close
     svg += `</svg>`;
 
-    // Download
     const filename = `GATIQ_Vehicle_Log_${gateId.replace(/\s+/g, '_')}_${formatFileDate(now)}.svg`;
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    if (outputMode !== 'blob') {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
 
     return { blob, filename };
   }

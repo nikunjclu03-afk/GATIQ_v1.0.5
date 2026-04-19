@@ -5,65 +5,26 @@
 
 const PDFExport = (() => {
 
-  // Table styles will be computed dynamically based on the number of columns
+  // Table styles
+  const thStyle = `
+    padding:8px 10px; text-align:left; font-weight:700;
+    border:1px solid #333; font-size:11px; color:#1a1a2e;
+    white-space:nowrap;
+  `;
+
+  const tdStyle = `
+    padding:7px 10px; border:1px solid #ccc;
+    font-size:11px; color:#333; white-space:nowrap;
+  `;
 
   /**
    * Generate PDF matching the selected Deployment Area exactly
    */
-  async function exportPDF({ societyName, gateId, entries, area, outputMode = 'save' }) {
+  async function exportPDF({ societyName, gateId, entries, area }) {
     const config = window.DeploymentConfig && window.DeploymentConfig[area] ? window.DeploymentConfig[area] : window.DeploymentConfig['Residential Society'];
-    const isWarehouseArea = area === 'Warehouses & Logistics Hubs';
     const now = new Date();
     const generatedOn = formatFullDate(now);
     const dateRange = LogManager.getDateRange();
-
-    // Page Size Logic (Based on Area Name):
-    // Warehouses & Logistics Hubs → A3 Landscape
-    // Factories & Manufacturing Plants → A4 Landscape
-    // Residential Society → A4 Landscape
-    // All others → A4 Landscape
-    let pageFormat = 'a4';
-    let orientation = 'landscape';
-
-    // Explicit area-based page format selection
-    if (area === 'Warehouses & Logistics Hubs') {
-      pageFormat = 'a3';
-      orientation = 'landscape';
-    } else {
-      pageFormat = 'a4';
-      orientation = 'landscape';
-    }
-
-    const facilityLabelMap = {
-      'Residential Society': 'Society Name',
-      'Factories & Manufacturing Plants': 'Factory Name',
-      'Warehouses & Logistics Hubs': 'Warehouse Name',
-      'Commercial Tech Parks & Business Centers': 'Company / Building Name',
-      'Educational Institutions': 'Institution Name',
-      'Hotels & Resorts': 'Hotel / Resort Name'
-    };
-    const facilityLabel = facilityLabelMap[area] || 'Facility / Site Name';
-
-    const columnCount = config.columns.length;
-    const isCompactTable = columnCount >= 9 && !isWarehouseArea;
-
-    const thFontSize = isWarehouseArea ? '10.5px' : (isCompactTable ? '10px' : '12px');
-    const tdFontSize = isWarehouseArea ? '10px' : (isCompactTable ? '9.5px' : '11px');
-    const thPadding = isWarehouseArea ? '6px 8px' : (isCompactTable ? '6px 7px' : '8px 10px');
-    const tdPadding = isWarehouseArea ? '5px 7px' : (isCompactTable ? '5px 6px' : '7px 9px');
-    const tableWidth = isWarehouseArea ? '97%' : '100%';
-
-    const thStyle = `
-      padding:${thPadding}; text-align:left; font-weight:700;
-      border:1px solid #333; font-size:${thFontSize}; color:#1a1a2e;
-      white-space:normal; line-height:1.2;
-    `;
-
-    const tdStyle = `
-      padding:${tdPadding}; border:1px solid #ccc;
-      font-size:${tdFontSize}; color:#333;
-      white-space:normal; word-break:break-word; line-height:1.2;
-    `;
 
     // Use the pre-embedded base64 logo from logo-data.js
     let logoHtml = `<div style="width:36px; height:36px; background:#4f46e5; border-radius:6px; display:inline-block; vertical-align:middle; text-align:center; color:white; font-weight:bold; font-size:20px; line-height:36px; font-family:sans-serif;">G</div>`;
@@ -123,107 +84,25 @@ const PDFExport = (() => {
       }
 
       return `
-      <table style="width:${tableWidth}; margin:0 auto; border-collapse:collapse; font-size:11px; border:1px solid #333; table-layout:fixed;">
+      <table style="width:100%; border-collapse:collapse; font-size:11px; border:1px solid #333;">
         <thead>${thead}</thead>
         <tbody>${tbody}</tbody>
       </table>`;
     };
 
-    // Calculate dynamic styling based on page format
-    const contentMaxWidth = pageFormat === 'a3' ? (isWarehouseArea ? 1450 : 1350) : 1000; // px
-    const contentPadding = pageFormat === 'a3'
-      ? (isWarehouseArea ? '14px 24px 10px' : '15px 40px 10px')
-      : '12px 30px 10px';
-    const otherPagePadding = pageFormat === 'a3'
-      ? (isWarehouseArea ? '14px 24px' : '15px 40px')
-      : '12px 30px';
-
-    const headerHtml = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          ${logoHtml}
-          <div style="font-size:14px; font-weight:600; color:#1a1a2e;">Abiliqt Technologies Pvt. Ltd.</div>
-        </div>
-        <div style="text-align:right; font-size:12px; color:#555;">
-          ${escapeHtml(facilityLabel)}: <strong>${escapeHtml(societyName)}</strong>
-        </div>
-      </div>
-
-      <h1 style="text-align:center; font-size:16px; font-weight:800; color:#1a1a2e; margin:8px 0 4px; letter-spacing:0.5px;">
-        GATIQ - VEHICLE ENTRY AUDIT LOG
-      </h1>
-
-      <div style="text-align:center; font-size:10px; color:#555; margin-bottom:3px;">
-        Period: ${escapeHtml(dateRange.from)} to ${escapeHtml(dateRange.to)} &nbsp;|&nbsp;
-        Area: ${escapeHtml(area)} &nbsp;|&nbsp;
-        Generated On: ${escapeHtml(generatedOn)} &nbsp;|&nbsp;
-        Gate ID: ${escapeHtml(gateId)}
-      </div>
-
-      <div style="font-size:10px; font-weight:700; color:#dc2626; margin-bottom:8px; text-transform:uppercase;">
-        CONFIDENTIAL - INTERNAL USE ONLY
-      </div>
-    `;
-
-    function getPageHeightPx() {
-      if (pageFormat === 'a3') return Math.floor(contentMaxWidth * (297 / 420));
-      return Math.floor(contentMaxWidth * (210 / 297));
-    }
-
-    function canFitRows(start, count, isFirstPage) {
-      const probe = document.createElement('div');
-      probe.style.cssText = `
-        position:absolute; left:-99999px; top:0; visibility:hidden; pointer-events:none;
-        width:${contentMaxWidth}px; height:${getPageHeightPx()}px; box-sizing:border-box;
-        padding:${isFirstPage ? contentPadding : otherPagePadding}; overflow:hidden;
-        font-family:'Inter', Arial, sans-serif; color:#1a1a2e; background:#fff;
-      `;
-
-      const chunk = entries.slice(start, start + count);
-      probe.innerHTML = `
-        <div style="position:relative; z-index:1;">
-          ${isFirstPage ? headerHtml : ''}
-          ${makeTableHtml(chunk)}
-        </div>
-      `;
-
-      document.body.appendChild(probe);
-      const fits = probe.scrollHeight <= probe.clientHeight;
-      probe.remove();
-      return fits;
-    }
-
-    function buildPageChunksByHeight() {
-      if (!entries.length) return [[]];
-
-      const chunks = [];
-      let start = 0;
-
-      while (start < entries.length) {
-        const remaining = entries.length - start;
-        const isFirstPage = chunks.length === 0;
-        let low = 1;
-        let high = remaining;
-        let best = 1;
-
-        while (low <= high) {
-          const mid = Math.floor((low + high) / 2);
-          if (canFitRows(start, mid, isFirstPage)) {
-            best = mid;
-            low = mid + 1;
-          } else {
-            high = mid - 1;
-          }
-        }
-
-        chunks.push(entries.slice(start, start + best));
-        start += best;
+    // Split entries into page chunks
+    // Explicitly requested: 10 rows on the first page, 11 on all subsequent pages
+    const ROWS_PAGE1 = 10;
+    const ROWS_OTHER = 11;
+    const pageChunks = [];
+    if (entries.length > 0) {
+      pageChunks.push(entries.slice(0, ROWS_PAGE1));
+      for (let i = ROWS_PAGE1; i < entries.length; i += ROWS_OTHER) {
+        pageChunks.push(entries.slice(i, i + ROWS_OTHER));
       }
-
-      return chunks;
+    } else {
+      pageChunks.push([]);
     }
-
-    const pageChunks = buildPageChunksByHeight();
 
     // Build complete HTML with CSS page breaks between chunks
     const htmlContent = `
@@ -231,14 +110,12 @@ const PDFExport = (() => {
         font-family: 'Inter', Arial, sans-serif;
         color: #1a1a2e;
         background: white;
-        width: 100%;
-        max-width: ${contentMaxWidth}px;
-        margin: 0 auto;
+        width: 1040px;
         box-sizing: border-box;
-        padding: 0;
+        margin: 0;
       ">
         <!-- PAGE 1: Full header + first chunk -->
-        <div style="position:relative; padding:${contentPadding}; break-inside:avoid-page; page-break-inside:avoid;">
+        <div style="position:relative; padding:15px 40px 10px;">
           <div style="
             position:absolute; top:50%; left:50%;
             transform:translate(-50%,-50%) rotate(-35deg);
@@ -248,14 +125,36 @@ const PDFExport = (() => {
           ">CONFIDENTIAL</div>
 
           <div style="position:relative; z-index:1;">
-            ${headerHtml}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                ${logoHtml}
+                <div style="font-size:14px; font-weight:600; color:#1a1a2e;">Abiliqt Technologies Pvt. Ltd.</div>
+              </div>
+              <div style="text-align:right; font-size:12px; color:#555;">
+                Society Name: <strong>${escapeHtml(societyName)}</strong>
+              </div>
+            </div>
+
+            <h1 style="text-align:center; font-size:16px; font-weight:800; color:#1a1a2e; margin:8px 0 4px; letter-spacing:0.5px;">
+              GATIQ – VEHICLE ENTRY AUDIT LOG
+            </h1>
+
+            <div style="text-align:center; font-size:10px; color:#555; margin-bottom:3px;">
+              Period: ${escapeHtml(dateRange.from)} to ${escapeHtml(dateRange.to)} &nbsp;|&nbsp;
+              Generated On: ${escapeHtml(generatedOn)} &nbsp;|&nbsp;
+              Gate ID: ${escapeHtml(gateId)}
+            </div>
+
+            <div style="font-size:10px; font-weight:700; color:#dc2626; margin-bottom:8px; text-transform:uppercase;">
+              CONFIDENTIAL - INTERNAL USE ONLY
+            </div>
 
             ${makeTableHtml(pageChunks[0])}
           </div>
         </div>
 
         ${pageChunks.slice(1).map(chunk => `
-          <div style="page-break-before:always; position:relative; padding:${otherPagePadding}; break-inside:avoid-page; page-break-inside:avoid;">
+          <div style="page-break-before:always; position:relative; padding:20px 40px;">
             <div style="
               position:absolute; top:50%; left:50%;
               transform:translate(-50%,-50%) rotate(-35deg);
@@ -271,9 +170,9 @@ const PDFExport = (() => {
       </div>
     `;
 
-    // Generate PDF - optimize margins and window width
+    // Generate PDF
     const options = {
-      margin: [3, 3, 5, 3],
+      margin: [8, 8, 14, 8],
       filename: `GATIQ_Vehicle_Log_${gateId.replace(/\s+/g, '_')}_${formatFileDate(now)}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
@@ -281,13 +180,12 @@ const PDFExport = (() => {
         useCORS: true,
         logging: false,
         letterRendering: true,
-        scrollY: 0,
-        windowWidth: pageFormat === 'a3' ? 1700 : 1400
+        scrollY: 0
       },
       jsPDF: {
         unit: 'mm',
-        format: pageFormat,
-        orientation: orientation
+        format: 'a4',
+        orientation: 'landscape'
       },
       pagebreak: { mode: ['css'] }
     };
@@ -313,21 +211,11 @@ const PDFExport = (() => {
           pdf.text('Data Purge Policy: 1 Year', pageWidth / 2, pageHeight - 4, { align: 'center' });
           pdf.text('Page ' + i + ' of ' + totalPages, pageWidth - 8, pageHeight - 4, { align: 'right' });
         }
-        const blob = pdf.output('blob');
-        const payload = { blob, filename: options.filename };
-        if (outputMode === 'blob') return payload;
-        if (outputMode === 'open') {
-          const blobUrl = URL.createObjectURL(blob);
-          window.open(blobUrl, '_blank', 'noopener');
-          window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-          return payload;
-        }
-        pdf.save(options.filename);
-        return payload;
       })
-      .then((result) => {
+      .save()
+      .then(() => {
         window.scrollTo(0, originalScrollY);
-        return result;
+        return true;
       })
       .catch(err => {
         window.scrollTo(0, originalScrollY);
@@ -367,4 +255,3 @@ const PDFExport = (() => {
 if (typeof window !== 'undefined') {
   window.PDFExport = PDFExport;
 }
-

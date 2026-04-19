@@ -36,7 +36,7 @@ const LogManager = (() => {
             // Map backend fields back to frontend expected keys
             entries = raw.map((log, index) => ({
                 id: log.id,
-                srNo: index + 1,
+                srNo: raw.length - index,
                 vehicleNo: log.vehicle_no,
                 vehicleType: log.vehicle_type,
                 gateNo: log.gate_no,
@@ -208,3 +208,4 @@ const LogManager = (() => {
 if (typeof window !== 'undefined') {
     window.LogManager = LogManager;
 }
+

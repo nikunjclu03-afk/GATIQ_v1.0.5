@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "D:/data/Desktop/GATIQ_v1.0.5/GATIQ API",
+        "D:/data/Desktop/GATIQ_v1.0.5/GATIQ API/venv/Lib/site-packages"
+    ]
+}

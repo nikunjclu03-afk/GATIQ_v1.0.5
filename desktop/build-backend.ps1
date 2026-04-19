@@ -129,8 +129,22 @@ $pyiArgs = @(
     $entryFile
 )
 
-if (Test-Path $logFile) { Remove-Item $logFile -Force }
-if (Test-Path $errLogFile) { Remove-Item $errLogFile -Force }
+foreach ($pathVar in @('logFile', 'errLogFile')) {
+    $currentPath = Get-Variable -Name $pathVar -ValueOnly
+    if (-not (Test-Path $currentPath)) {
+        continue
+    }
+
+    try {
+        Remove-Item -Path $currentPath -Force -ErrorAction Stop
+    } catch {
+        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $fallbackName = '{0}-{1}{2}' -f [System.IO.Path]::GetFileNameWithoutExtension($currentPath), $timestamp, [System.IO.Path]::GetExtension($currentPath)
+        $fallbackPath = Join-Path $logRoot $fallbackName
+        Write-Warning "Could not overwrite $currentPath. Using $fallbackPath for this run."
+        Set-Variable -Name $pathVar -Value $fallbackPath
+    }
+}
 $previousErrorAction = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 & $pythonExe @pythonArgs @pyiArgs 2>&1 | Tee-Object -FilePath $logFile
@@ -156,10 +170,10 @@ if (-not (Test-Path $internalDir)) {
 }
 
 # Copy backend assets explicitly to avoid CLI path-separator issues on Windows.
-foreach ($asset in @('.env', 'best.onnx', 'yolov8n.pt')) {
+foreach ($asset in @('.env', 'best.onnx', 'yolov8n.pt', 'easyocr_models')) {
     $sourceAsset = Join-Path $backendRoot $asset
     if (Test-Path $sourceAsset) {
-        Copy-Item -Path $sourceAsset -Destination (Join-Path $bundleRoot $asset) -Force
+        Copy-Item -Path $sourceAsset -Destination (Join-Path $bundleRoot $asset) -Recurse -Force
     }
 }
 

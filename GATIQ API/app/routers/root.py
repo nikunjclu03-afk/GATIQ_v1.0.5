@@ -26,6 +26,5 @@ def read_root():
             "/reports/jobs",
             "/sync",
             "/sync/jobs",
-            "/auth/google/login",
         ],
     }

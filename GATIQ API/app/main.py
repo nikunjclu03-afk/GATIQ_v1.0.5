@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import database, models
 from .core.config import API_TITLE, API_VERSION, CORS_ORIGIN_REGEX, ensure_required_config
-from .routers import auth, camera, exceptions, health, jobs, logs, reports, reviews, root, scan, sync, vehicles, whitelist, audit, incidents, plans, analytics, exports, corrections
+from .routers import camera, exceptions, health, jobs, logs, reports, reviews, root, scan, sync, vehicles, whitelist, audit, incidents, plans, analytics, exports, corrections
 from .services.ai_runtime import warmup_async
 from .services.job_service import start_worker
 from .services.normalization_service import backfill_normalized_references
@@ -44,7 +44,6 @@ app.include_router(logs.router)
 app.include_router(whitelist.router)
 app.include_router(reports.router)
 app.include_router(sync.router)
-app.include_router(auth.router)
 app.include_router(vehicles.router)
 app.include_router(exceptions.router)
 app.include_router(camera.router)

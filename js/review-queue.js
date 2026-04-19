@@ -73,56 +73,62 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reviewEmptyState) reviewEmptyState.style.display = 'none';
         if (document.getElementById('reviewTable')) document.getElementById('reviewTable').style.display = 'table';
 
-        // Render rows
-        reviewTableBody.innerHTML = reviews.map(r => {
-            const timeStr = new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
-            // Quality UI
-            let qualityHtml = '';
-            if (r.quality_level === 'poor') {
-                qualityHtml = `<span class="stat-badge" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5;">Poor Quality</span>`;
-            } else if (r.quality_level === 'fair') {
-                qualityHtml = `<span class="stat-badge" style="background:#fef3c7; color:#d97706; border-color:#fcd34d;">Fair</span>`;
-            } else {
-                qualityHtml = `<span class="stat-badge" style="background:#d1fae5; color:#059669; border-color:#6ee7b7;">Good</span>`;
-            }
+        // Get currently selected area for options
+        const areaSelect = document.getElementById('deploymentArea');
+        const activeArea = areaSelect ? areaSelect.value : 'Residential Society';
+        const config = window.DeploymentConfig ? window.DeploymentConfig[activeArea] : null;
+        
+        const purposeOptions = config ? config.purposeOptions : ['Guest', 'Delivery', 'Staff', 'Other'];
+        const taggingOptions = config ? config.taggingOptions : ['Resident', 'Non-Resident', 'Staff'];
 
-            // Duplicate flags
+        // Render rows
+        reviewTableBody.innerHTML = reviews.map((r, idx) => {
+            const timeStr = new Date(r.created_at).toLocaleString([], { 
+                day: '2-digit', month: '2-digit', year: '2-digit',
+                hour: '2-digit', minute: '2-digit' 
+            });
+            
             const flags = parseHints(r.duplicate_flags_json);
             let flagsHtml = flags.map(f => {
-                if (f === 'already_inside') return `<span style="display:block; font-size:0.75rem; color:#f59e0b; margin-top:2px;">⚠️ Already Inside</span>`;
-                if (f === 'recent_duplicate') return `<span style="display:block; font-size:0.75rem; color:#ef4444; margin-top:2px;">⚠️ Recent Duplicate</span>`;
+                if (f === 'already_inside') return `<span style="display:block; font-size:0.7rem; color:#f59e0b; margin-top:2px;">⚠️ In</span>`;
+                if (f === 'recent_duplicate') return `<span style="display:block; font-size:0.7rem; color:#ef4444; margin-top:2px;">⚠️ Dup</span>`;
                 return '';
             }).join('');
 
             return `
                 <tr id="reviewRow_${r.id}">
+                    <td>${idx + 1}</td>
+                    <td><span style="font-size:0.85rem; font-weight:500;">${r.gate_no || '-'}</span></td>
                     <td>
-                        <input type="text" class="form-input review-plate-input" id="plateInput_${r.id}" value="${r.detected_plate}" style="width: 130px; padding: 0.3rem 0.6rem; font-weight: bold; text-transform: uppercase;">
+                        <input type="text" class="form-input review-plate-input" id="plateInput_${r.id}" value="${r.detected_plate}" 
+                            style="width: 110px; padding: 0.2rem 0.5rem; font-weight: bold; text-transform: uppercase; font-size:0.85rem; border-radius:4px;">
                         ${flagsHtml}
                     </td>
-                    <td>${qualityHtml}</td>
+                    <td><span style="font-size:0.8rem; color:var(--text-secondary);">${timeStr}</span></td>
                     <td>
-                        <select id="dirInput_${r.id}" class="form-select" style="width:90px; padding: 0.2rem 0.5rem; font-size:0.85rem;">
+                        <select id="purposeInput_${r.id}" class="form-select" style="width:110px; padding: 0.2rem 0.4rem; font-size:0.8rem;">
+                            ${purposeOptions.map(opt => `<option value="${opt}" ${r.purpose === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select id="taggingInput_${r.id}" class="form-select" style="width:110px; padding: 0.2rem 0.4rem; font-size:0.8rem;">
+                            ${taggingOptions.map(opt => `<option value="${opt}" ${r.tagging === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select id="dirInput_${r.id}" class="form-select" style="width:80px; padding: 0.2rem 0.4rem; font-size:0.8rem;">
                             <option value="Entry" ${r.direction==='Entry'?'selected':''}>Entry</option>
                             <option value="Exit" ${r.direction==='Exit'?'selected':''}>Exit</option>
                         </select>
                     </td>
+                    <td><span style="font-size:0.85rem;">${r.vehicle_type || 'Car'}</span></td>
                     <td>
-                        <span style="font-size: 0.8rem; color: var(--text-secondary);">${r.vehicle_type || '-'}</span><br>
-                        <span style="font-size: 0.75rem; color: var(--text-tertiary);">${timeStr}</span>
-                    </td>
-                    <td>
-                        <div style="display:flex; gap:0.4rem; align-items:center;">
-                            <button class="header-circle-btn" style="color:#059669; border-color:#6ee7b7; background:#d1fae5;" onclick="window.confirmReview(${r.id})" title="Confirm & Log">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        <div style="display:flex; gap:0.3rem; align-items:center;">
+                            <button class="header-circle-btn" style="color:#059669; border-color:#6ee7b7; background:#d1fae5; width:26px; height:26px;" onclick="window.confirmReview(${r.id})" title="Confirm & Log">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                             </button>
-                            <button class="header-circle-btn header-circle-btn--danger" onclick="window.rejectReview(${r.id})" title="Reject (Spam/False Positive)">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                            <button class="header-circle-btn" style="color:#64748b; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;" onclick="window.markUnreadableReview(${r.id})">Unreadable</button>
-                            <button class="header-circle-btn" style="color:#d97706; border-color:#fcd34d; background:#fef3c7;" onclick="window.logIncident(${r.id}, null, '${r.detected_plate}')" title="Log Incident / Tailgating">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            <button class="header-circle-btn header-circle-btn--danger" style="width:26px; height:26px;" onclick="window.rejectReview(${r.id})" title="Reject">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                         </div>
                     </td>
@@ -136,13 +142,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.gatiqFetchAPI) return;
         const plateInput = document.getElementById(`plateInput_${id}`);
         const dirInput = document.getElementById(`dirInput_${id}`);
+        const purposeInput = document.getElementById(`purposeInput_${id}`);
+        const taggingInput = document.getElementById(`taggingInput_${id}`);
         
         try {
             await window.gatiqFetchAPI(`/scan/reviews/${id}/confirm`, {
                 method: 'POST',
                 body: JSON.stringify({
                     corrected_plate: (plateInput ? plateInput.value : '').toUpperCase(),
-                    direction: dirInput ? dirInput.value : undefined
+                    direction: dirInput ? dirInput.value : undefined,
+                    purpose: purposeInput ? purposeInput.value : undefined,
+                    tagging: taggingInput ? taggingInput.value : undefined
                 })
             });
             if (window.gatiqShowToast) window.gatiqShowToast('Scan confirmed & logged.', 'success');

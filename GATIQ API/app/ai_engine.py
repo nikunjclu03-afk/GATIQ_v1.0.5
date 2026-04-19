@@ -1,11 +1,33 @@
 import cv2
 import numpy as np
 from ultralytics import YOLO
-import easyocr
+from rapidocr_onnxruntime import RapidOCR
 import os
 import re
 import base64
+from app.vision.direction_module import DirectionModule
+from app.vision.ocr_module import OCRModule
+from app.vision.vehicle_module import VehicleModule
 from datetime import datetime
+
+
+def _is_lfs_pointer(file_path):
+    try:
+        with open(file_path, "rb") as handle:
+            header = handle.read(256)
+        return header.startswith(b"version https://git-lfs.github.com/spec/v1")
+    except OSError:
+        return False
+
+
+def _assert_local_model(file_path, label, min_bytes=1024):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{label} missing at {file_path}")
+    if os.path.getsize(file_path) < min_bytes or _is_lfs_pointer(file_path):
+        raise RuntimeError(
+            f"{label} is not bundled correctly at {file_path}. "
+            "The desktop build requires real offline model files, not Git LFS pointers."
+        )
 
 class GatiqLocalAI:
     def __init__(self):
@@ -14,17 +36,20 @@ class GatiqLocalAI:
         
         # 1. Plate Detector (Custom Trained)
         model_path = os.path.join(self.base_dir, "best.onnx")
+        _assert_local_model(model_path, "Plate detector model")
         print(f"Loading custom Plate Detector from: {model_path}")
         self.detector = YOLO(model_path, task='detect') 
         
         # 2. Vehicle Classifier (Standard YOLOv8n)
         # Included for vehicle type (Car, Bike, etc.)
         vehicle_model_path = os.path.join(self.base_dir, "yolov8n.pt")
+        _assert_local_model(vehicle_model_path, "Vehicle classifier model")
         print(f"Loading Vehicle Classifier from: {vehicle_model_path}")
         self.vehicle_detector = YOLO(vehicle_model_path)
         
-        # 3. OCR Engine
-        self.ocr = easyocr.Reader(['en'], gpu=False) 
+        # 3. OCR Engine (RapidOCR - PaddleOCR ONNX models, faster & more accurate)
+        print("Loading RapidOCR (PaddleOCR ONNX) engine...")
+        self.ocr = RapidOCR()
         
         # Debug folder setup
         self.debug_dir = os.getenv("GATIQ_DEBUG_DIR", os.path.join(self.base_dir, "debug_scans"))
@@ -34,111 +59,48 @@ class GatiqLocalAI:
         # Strict Indian Plate Regex
         self.plate_pattern = re.compile(r'^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{1,4}$')
 
-    def detect_vehicle_side_heuristic(self, vehicle_crop):
-        """
-        Heuristic to distinguish Front vs Back.
-        Rear usually has red tail lights. 
-        Works by detecting red blobs in the vehicle crop.
-        """
-        if vehicle_crop is None or vehicle_crop.size == 0:
-            return "Entry" # Default to Entry
-        
-        # Convert to HSV for better color detection
-        hsv = cv2.cvtColor(vehicle_crop, cv2.COLOR_BGR2HSV)
-        
-        # Define range for RED color (typical for tail lights)
-        lower_red1 = np.array([0, 70, 50])
-        upper_red1 = np.array([10, 255, 255])
-        lower_red2 = np.array([170, 70, 50])
-        upper_red2 = np.array([180, 255, 255])
-        
-        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-        red_mask = cv2.add(mask1, mask2)
-        
-        # Calculate percentage of red pixels
-        red_pixel_count = cv2.countNonZero(red_mask)
-        total_pixels = vehicle_crop.shape[0] * vehicle_crop.shape[1]
-        red_ratio = red_pixel_count / total_pixels
-        
-        # If significant red is found (tail lights), it's likely the Rear/Exit
-        # Threshold 0.5% (approx 1/200th of image area)
-        return "Exit" if red_ratio > 0.005 else "Entry"
+
 
     def get_variants(self, crop):
-        """Generates 4 different image variants for OCR testing."""
+        """Generates 5 optimized image variants for accurate OCR."""
         if crop is None or crop.size == 0:
             return []
         
         variants = []
-        # Upscale 2.5x
-        v1 = cv2.resize(crop, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-        variants.append(("original", v1))
+        
+        # Upscale 3x for digit clarity
+        v1 = cv2.resize(crop, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
+        variants.append(("original_3x", v1))
         
         gray = cv2.cvtColor(v1, cv2.COLOR_BGR2GRAY)
         
-        # Variant 2: Grayscale + Sharpened
+        # Variant 2: Sharpened Grayscale
         kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
         v2 = cv2.filter2D(gray, -1, kernel)
         variants.append(("sharpened_gray", v2))
         
-        # Variant 3: Bilateral Filter (Denoise)
-        v3 = cv2.bilateralFilter(gray, 9, 75, 75)
-        variants.append(("bilateral_gray", v3))
+        # Variant 3: CLAHE (best for faded/low-contrast plates)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        v3 = clahe.apply(gray)
+        variants.append(("clahe", v3))
         
-        # Variant 4: Adaptive Threshold
-        v4 = cv2.adaptiveThreshold(v3, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        # Variant 4: Otsu Threshold (auto-optimal binarization)
+        _, v4 = cv2.threshold(v3, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        variants.append(("otsu", v4))
+
+        # Variant 5: Adaptive Threshold on denoised
+        v5_denoised = cv2.bilateralFilter(gray, 9, 75, 75)
+        v5 = cv2.adaptiveThreshold(v5_denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                    cv2.THRESH_BINARY, 11, 2)
-        variants.append(("threshold", v4))
+        variants.append(("adaptive_thresh", v5))
         
         return variants
 
-    def apply_segment_correction(self, text):
-        """Applies segment-aware character correction."""
-        if not text or len(text) < 4: return text
-        
-        # Remove any stray spaces or symbols again
-        text = "".join(e for e in text if e.isalnum()).upper()
-        
-        # Hard fixes for STATE codes
-        if text.startswith("HH"): text = "MH" + text[2:]
-        if text.startswith("KH"): text = "MH" + text[2:]
-        if text.startswith("H11"): text = "MH" + text[3:]
-        
-        chars = list(text)
-        # Position 0-1: State (Letters)
-        for i in range(min(2, len(chars))):
-            swaps = {'0': 'O', '1': 'I', '2': 'Z', '5': 'S', '8': 'B', '4': 'A'}
-            chars[i] = swaps.get(chars[i], chars[i])
-            
-        # Position 2-3: District (Numbers)
-        for i in range(2, min(4, len(chars))):
-            if chars[i].isalpha():
-                swaps = {'O': '0', 'I': '1', 'L': '1', 'S': '5', 'Z': '2', 'B': '8', 'G': '6', 'T': '7'}
-                chars[i] = swaps.get(chars[i], chars[i])
-                
-        # Last 4: Number (Numbers)
-        start_idx = max(len(chars) - 4, 4)
-        for i in range(start_idx, len(chars)):
-            if chars[i].isalpha():
-                swaps = {'O': '0', 'I': '1', 'L': '1', 'S': '5', 'Z': '2', 'B': '8', 'G': '6', 'T': '7'}
-                chars[i] = swaps.get(chars[i], chars[i])
-                
-        return "".join(chars)
 
-    def score_candidate(self, text):
-        """Scores a candidate string based on Indian plate format."""
-        if not text: return 0
-        score = 0
-        if 7 <= len(text) <= 10: score += 15
-        if self.plate_pattern.match(text): score += 60
-        if text[:2] in ["MH", "DL", "HR", "UP", "KA", "TN", "GA", "RJ", "GJ", "AP", "TS", "MP", "PB", "BR", "CH", "JK"]:
-            score += 10
-        if len(text) >= 4 and text[2:4].isdigit(): score += 5
-        return score
 
-    def _build_result_tagging(self, final_plate):
-        return "Resident" if any(final_plate.startswith(s) for s in ["MH", "DL", "HR", "UP", "KA", "TN", "GA", "RJ", "GJ", "AP", "TS", "MP", "PB", "BR"]) else "Non-Resident"
+
+
+
 
     def _process_core(self, img, include_diagnostics=False):
         if img is None: return []
@@ -161,11 +123,12 @@ class GatiqLocalAI:
         for v_box in vehicle_results.boxes:
             v_cls = int(v_box.cls[0])
             v_conf = float(v_box.conf[0])
-            if v_cls in [2, 3, 5, 7] and v_conf > 0.4:
-                vx1, vy1, vx2, vy2 = map(int, v_box.xyxy[0])
+            v_data = VehicleModule.identify_vehicle(v_box.cls[0], v_box.conf[0], v_box.xyxy[0], vehicle_results.names)
+            if v_data['is_valid']:
+                vx1, vy1, vx2, vy2 = v_data['bbox']
                 v_crop = img[vy1:vy2, vx1:vx2]
-                v_type = vehicle_results.names[v_cls].capitalize()
-                v_side = self.detect_vehicle_side_heuristic(v_crop)
+                v_type = v_data['type']
+                v_side = DirectionModule.detect_vehicle_side(v_crop)
                 vehicles_found.append({
                     "bbox": (vx1, vy1, vx2, vy2),
                     "type": v_type,
@@ -210,17 +173,22 @@ class GatiqLocalAI:
             
             for v_name, v_img in variants:
                 cv2.imwrite(os.path.join(self.debug_dir, f"{timestamp}_det_{idx}_var_{v_name}.jpg"), v_img)
-                ocr_out = self.ocr.readtext(v_img, detail=0)
+                result, _ = self.ocr(v_img)
+                ocr_out = [line[1] for line in result] if result else []
                 raw_text = "".join(ocr_out).replace(" ", "").upper()
-                corrected = self.apply_segment_correction(raw_text)
-                score = self.score_candidate(corrected)
+                corrected = OCRModule.apply_segment_correction(raw_text)
+                score = OCRModule.score_candidate(corrected)
                 candidates.append({"text": corrected, "score": score, "variant": v_name, "raw": raw_text})
 
-            # Best Candidate
+            # Best Candidate via Consensus Voting
             best_cand = None
             if candidates:
-                best_cand = max(candidates, key=lambda x: x["score"])
-                final_plate = best_cand["text"] if best_cand["score"] >= 20 else "UNREADABLE"
+                best_cand = OCRModule.consensus_vote(candidates)
+                if best_cand and best_cand["score"] >= 20:
+                    final_plate = best_cand["text"]
+                else:
+                    best_cand = max(candidates, key=lambda x: x["score"])
+                    final_plate = best_cand["text"] if best_cand["score"] >= 20 else "UNREADABLE"
             else:
                 final_plate = "UNREADABLE"
 
@@ -234,10 +202,14 @@ class GatiqLocalAI:
                 "candidates": candidates,
             })
             
+            tagging_val = "Unknown"
+            purpose_val = "Unknown"
+            
             detections.append({
                 "plate_number": final_plate,
                 "direction": v_side, 
-                "tagging": self._build_result_tagging(final_plate),
+                "tagging": tagging_val,
+                "purpose": purpose_val,
                 "vehicle_type": v_type,
                 "debug": {"conf": conf, "best_variant": best_cand["variant"] if best_cand else "none"}
             })
@@ -246,14 +218,17 @@ class GatiqLocalAI:
         if not detections:
             diagnostics["fallback_used"] = True
             gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            ocr_out = self.ocr.readtext(gray_img, detail=0)
+            result, _ = self.ocr(gray_img)
+            ocr_out = [line[1] for line in result] if result else []
             raw_text = "".join(ocr_out).replace(" ", "").upper()
-            corrected = self.apply_segment_correction(raw_text)
+            corrected = OCRModule.apply_segment_correction(raw_text)
             diagnostics["fallback_text_raw"] = raw_text
             diagnostics["fallback_text_corrected"] = corrected
             if len(corrected) >= 7:
+                tagging_val = "Unknown"
+                purpose_val = "Unknown"
                 detections.append({
-                    "plate_number": corrected, "direction": "Entry", "tagging": self._build_result_tagging(corrected), "vehicle_type": "Car"
+                    "plate_number": corrected, "direction": "Entry", "tagging": tagging_val, "purpose": purpose_val, "vehicle_type": "Car"
                 })
 
         if include_diagnostics:
@@ -298,3 +273,5 @@ def get_ai_engine():
     global engine
     if engine is None: engine = GatiqLocalAI()
     return engine
+
+

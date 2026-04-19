@@ -1,5 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('electron', {
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)
+});
+
 contextBridge.exposeInMainWorld('gatiqDesktop', {
   isDesktop: true,
   licensing: {
@@ -23,8 +27,9 @@ contextBridge.exposeInMainWorld('gatiqDesktop', {
     loadBackendConfig: () => ipcRenderer.invoke('secure-config:load-backend'),
     saveBackendConfig: (config) => ipcRenderer.invoke('secure-config:save-backend', config)
   },
-  auth: {
-    startGoogleAuth: (payload) => ipcRenderer.invoke('auth:start-google', payload)
+  exports: {
+    getDirectory: () => ipcRenderer.invoke('exports:get-directory'),
+    saveFile: (payload) => ipcRenderer.invoke('exports:save-file', payload)
   },
   updater: {
     getStatus: () => ipcRenderer.invoke('updater:get-status'),

@@ -17,6 +17,8 @@ $exePath = Join-Path $bundleRoot 'GATIQBackend.exe'
 $internalDir = Join-Path $bundleRoot '_internal'
 $smokePort = 8011
 $smokeApiKey = 'GATIQ-SMOKE-VALIDATION'
+$sourceSmokeDataDir = Join-Path $repoRoot 'build\smoke-data-src'
+$runtimeSmokeDataDir = Join-Path $repoRoot 'build\smoke-data'
 
 function Assert-Path {
     param(
@@ -35,6 +37,7 @@ Assert-Path -PathValue $entryFile -Label 'Backend entry'
 
 if (-not $SkipSourceSmoke) {
     Write-Host "Running backend source import smoke test..."
+    New-Item -ItemType Directory -Force -Path $sourceSmokeDataDir | Out-Null
     $sourceSmoke = @"
 import importlib
 import json
@@ -47,6 +50,7 @@ backend_root = repo_root / "GATIQ API"
 sys.path.insert(0, str(backend_root))
 os.environ.setdefault("GATIQ_API_KEY", "$smokeApiKey")
 os.environ.setdefault("GATIQ_ENV_FILE", str(backend_root / ".env"))
+os.environ.setdefault("GATIQ_DATA_DIR", r"$sourceSmokeDataDir")
 import fastapi
 import uvicorn
 import cv2
@@ -93,6 +97,7 @@ if (-not $SkipRuntimeSmoke) {
     $stdoutLog = Join-Path $repoRoot 'build\logs\backend-smoke.stdout.log'
     $stderrLog = Join-Path $repoRoot 'build\logs\backend-smoke.stderr.log'
     New-Item -ItemType Directory -Force -Path (Split-Path $stdoutLog -Parent) | Out-Null
+    New-Item -ItemType Directory -Force -Path $runtimeSmokeDataDir | Out-Null
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exePath
@@ -103,7 +108,7 @@ if (-not $SkipRuntimeSmoke) {
     $psi.Environment["GATIQ_API_KEY"] = $smokeApiKey
     $psi.Environment["GATIQ_HOST"] = "127.0.0.1"
     $psi.Environment["GATIQ_PORT"] = "$smokePort"
-    $psi.Environment["GATIQ_DATA_DIR"] = (Join-Path $repoRoot 'build\smoke-data')
+    $psi.Environment["GATIQ_DATA_DIR"] = $runtimeSmokeDataDir
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $psi
