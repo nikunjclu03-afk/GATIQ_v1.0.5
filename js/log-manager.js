@@ -32,11 +32,21 @@ const LogManager = (() => {
             if (!response.ok) throw new Error(`Server returned ${response.status}`);
             
             const raw = await response.json();
+
+            // Month-based filtering: Only show logs from the current month in the table
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            const monthFiltered = raw.filter(log => {
+                const logDate = new Date(log.timestamp);
+                return logDate.getMonth() === currentMonth && logDate.getFullYear() === currentYear;
+            });
             
             // Map backend fields back to frontend expected keys
-            entries = raw.map((log, index) => ({
+            entries = monthFiltered.map((log, index) => ({
                 id: log.id,
-                srNo: raw.length - index,
+                srNo: monthFiltered.length - index,
                 vehicleNo: log.vehicle_no,
                 vehicleType: log.vehicle_type,
                 gateNo: log.gate_no,
@@ -48,15 +58,12 @@ const LogManager = (() => {
                 tagging: log.tagging,
                 vehicleCapacity: log.vehicle_capacity || '',
                 dockNo: log.dock_no || '',
-                consignmentNo: log.consignment_no || '',
+                consignment_no: log.consignment_no || '',
                 driverName: log.driver_name || '',
                 driverPhone: log.driver_phone || '',
                 status: log.status,
                 timestamp: log.timestamp
             }));
-            
-            // Reverse so newest is first in the list if not sorted by backend
-            // (Backend already sorts by id desc, so index 0 is newest)
             
             return entries;
         } catch (err) {
@@ -108,6 +115,11 @@ const LogManager = (() => {
             
             // Refresh local list from server to ensure consistency
             await loadFromServer(data.area);
+
+            // Trigger Real-time PDF Snapshot
+            if (window.PdfSnapshotManager) {
+                window.PdfSnapshotManager.handleNewEntry();
+            }
             
             return savedLog;
         } catch (err) {

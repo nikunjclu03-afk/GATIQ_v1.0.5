@@ -673,13 +673,6 @@
                         <span class="header-status-pill" id="cameraStatusPill">Camera: Off</span>
                         <span class="header-status-pill" id="scannerStatusPill">Scanner: Idle</span>
                         <span class="header-status-pill" id="cloudStatusPill">Cloud: Off</span>
-                        <div class="header-sync-card panel-sync-card" id="headerSyncCard" title="Sync status">
-                            <div class="header-sync-title">
-                                <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i>
-                                <span>Sync Status</span>
-                            </div>
-                            <div class="header-sync-sub" id="syncStatusText">Not synced yet</div>
-                        </div>
                     </div>
                 </div>
                 <div class="panel-body camera-horizontal">
@@ -973,17 +966,6 @@
                 placeholder="Search bar">
         </div>
 
-        <div class="quick-cloud-sync-row">
-            <div class="quick-cloud-sync-label">
-                <i data-lucide="cloud" style="width:14px;height:14px;"></i>
-                <span>Cloud Sync</span>
-                <span class="quick-cloud-sync-state" id="quickCloudSyncState">OFF</span>
-            </div>
-            <button class="quick-cloud-toggle" id="quickCloudSyncToggle" type="button" aria-pressed="false"
-                title="Toggle Cloud Sync">
-                <span class="quick-cloud-toggle-knob"></span>
-            </button>
-        </div>
 
         <div class="quick-month-groups" id="quickAccessResults"></div>
 
@@ -1372,35 +1354,6 @@
                 <small id="backendConnectionStatus" style="font-size: 0.65rem; color: var(--text-tertiary); margin-top: 6px; display:block;">* Desktop mode auto-starts the local AI backend. Browser mode requires a reachable local GATIQ API before scanning.</small>
             </div>
 
-            <div class="settings-divider settings-grid-full"></div>
-
-            <div class="form-group settings-grid-full">
-                <label>Cloud Storage Integration</label>
-                <p style="font-size: 0.70rem; color: var(--text-tertiary); margin-bottom: 0.5rem;">
-                    Back up your PDF reports and vehicle data to Google Cloud for extra safety.</p>
-
-                <div class="cloud-config-card" 
-                    style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.65rem;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 0.5rem;">
-                        <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
-                            <i data-lucide="cloud" style="width:14px;height:14px;"></i> Google Cloud Backup
-                        </span>
-                        <span id="cloudConnectionStatus" class="stat-badge" style="font-size: 0.65rem;">Disconnected</span>
-                    </div>
-                    
-                    <button class="btn btn-secondary" id="btnConnectGoogleCloud"
-                        style="width: 100%; display: flex; justify-content: center; gap: 0.5rem; border-radius: 50px; margin-bottom: 0.44rem;"
-                        type="button">
-                        <span style="display:flex;align-items:center;"><i data-lucide="link"
-                                style="width:16px;height:16px;"></i></span> Connect Google Account
-                    </button>
-
-                    <div id="cloudPolicyNote" style="font-size: 0.65rem; color: var(--text-tertiary);">
-                        <i data-lucide="shield-check" style="width:12px;height:12px;vertical-align:middle;margin-right:2px"></i> 
-                        <strong>Privacy Policy:</strong> Data is synchronized for 12 months. Any records older than 1 year (365 days) will be automatically purged from the cloud backup.
-                    </div>
-                </div>
-            </div>
 
             <div class="settings-divider settings-grid-full"></div>
 
@@ -1614,6 +1567,7 @@
     <script src="js/backend-orchestrator.js"></script>
     <script src="js/auth-service.js"></script>
     <script src="js/quick-viewer-service.js"></script>
+    <script src="js/pdf-snapshot-manager.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/review-queue.js"></script>
     <script src="js/camera-health.js"></script>

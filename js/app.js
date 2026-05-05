@@ -90,8 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const quickChipMonth = document.getElementById('quickChipMonth');
     const quickChipYear = document.getElementById('quickChipYear');
     const quickAreaFilter = document.getElementById('quickAreaFilter');
-    const quickCloudSyncToggle = document.getElementById('quickCloudSyncToggle');
-    const quickCloudSyncState = document.getElementById('quickCloudSyncState');
+    const quickCloudSyncToggle = null;
+    const quickCloudSyncState = null;
     const quickViewerModal = document.getElementById('quickViewerModal');
     const btnCloseQuickViewer = document.getElementById('btnCloseQuickViewer');
     const quickViewerTitle = document.getElementById('quickViewerTitle');
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cameraStatusPill = document.getElementById('cameraStatusPill');
     const scannerStatusPill = document.getElementById('scannerStatusPill');
     const cloudStatusPill = document.getElementById('cloudStatusPill');
-    const syncStatusText = document.getElementById('syncStatusText');
+    const syncStatusText = null;
     const homeDashboard = document.getElementById('homeDashboard');
     const workspaceView = document.getElementById('workspaceView');
     const btnOpenWorkspace = document.getElementById('btnOpenWorkspace');
@@ -300,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getScopedStorageKey(key) {
         return `${key}__${activeUserScope}`;
     }
+    window.getScopedStorageKey = getScopedStorageKey;
 
     function getBackendConfig() {
         const baseUrl = backendApiUrlInput?.value.trim() || storageGet(BACKEND_API_URL_KEY) || DEFAULT_BACKEND_URL;
@@ -470,7 +471,17 @@ document.addEventListener('DOMContentLoaded', () => {
         renderTable();
         syncQuickAreaFilterOptions();
         renderQuickAccessResults();
+
+        // Initialize Real-time PDF Snapshot Manager
+        if (window.PdfSnapshotManager) {
+            await window.PdfSnapshotManager.init();
+        }
     }
+
+    // Utility getters for Snapshot Manager
+    window.getActiveArea = () => deploymentAreaSelect ? deploymentAreaSelect.value : 'Residential Society';
+    window.getSocietyName = () => societyInput ? societyInput.value : 'Sky Heights';
+    window.getGateId = () => gateSelect ? gateSelect.value : 'Gate 1';
 
     function finishStartupSplash() {
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -1462,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateCloudConnectionUI() {
         const statusEl = document.getElementById('cloudConnectionStatus');
         const connectBtn = document.getElementById('btnConnectGoogleCloud');
+        if (!statusEl && !connectBtn) return;
         
         let isConnected = false;
         let cloudUser = storageGet('gatiq_cloud_user');
@@ -3885,26 +3897,99 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function saveLocalPDFHistory() {
+        // Enforce strict deduplication before saving to storage
+        const deduplicated = [];
+        const monthMap = new Set();
+        
+        // Process records: keep only the newest one for each month
+        [...localPDFHistory].forEach(r => {
+            if (!r || !r.id) return;
+            let monthKey = '';
+            if (r.id.startsWith('MONTHLY_')) {
+                monthKey = r.id.split('_')[1];
+            } else {
+                // Fallback for legacy IDs: try to extract month from generatedAt
+                const d = new Date(r.generatedAt);
+                if (!Number.isNaN(d.getTime())) {
+                    monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                }
+            }
+            
+            if (monthKey && !monthMap.has(monthKey)) {
+                monthMap.add(monthKey);
+                deduplicated.push(r);
+            } else if (!monthKey) {
+                deduplicated.push(r); // Keep non-monthly records as is
+            }
+        });
+
+        const key = getScopedStorageKey('gatiq_pdf_history');
+        localStorage.setItem(key, JSON.stringify(deduplicated));
+        localPDFHistory = deduplicated; // Sync memory
+    }
+
     async function fetchPDFHistoryFromAPI(area) {
-        localPDFHistory = await fetchPDFHistoryAPI(area);
+        try {
+            // 1. Try fetching from server
+            const serverHistory = await fetchPDFHistoryAPI(area);
+            
+            // 2. Fetch from local as fallback/merge
+            const key = getScopedStorageKey('gatiq_pdf_history');
+            const localRaw = localStorage.getItem(key);
+            let localList = [];
+            try { if(localRaw) localList = JSON.parse(localRaw); } catch(e){}
+
+            // Merge: prefer local snapshots that haven't been synced or are newer
+            // For now, let's just combine and uniq by ID
+            const merged = [...localList];
+            serverHistory.forEach(s => {
+                if (!merged.find(m => m.id === s.id)) merged.push(s);
+            });
+
+            localPDFHistory = merged;
+        } catch (err) {
+            console.warn('Backend PDF fetch failed, using local only:', err);
+            const key = getScopedStorageKey('gatiq_pdf_history');
+            const localRaw = localStorage.getItem(key);
+            try { 
+                if(localRaw) localPDFHistory = JSON.parse(localRaw); 
+                else localPDFHistory = [];
+            } catch(e){ localPDFHistory = []; }
+        }
         return localPDFHistory;
     }
 
     async function savePDFReportToAPI(report) {
         try {
-            const accepted = await savePDFReportAPI(report);
-            await waitForBackendJob(accepted.job_id, 45000);
-            localPDFHistory.unshift(report);
+            // 1. Save Locally Immediately
+            const index = localPDFHistory.findIndex(r => r.id === report.id);
+            if (index > -1) localPDFHistory[index] = report;
+            else localPDFHistory.unshift(report);
+            
+            saveLocalPDFHistory();
+            renderQuickAccessResults(); // Instant UI update
+
+            // 2. Try to sync to backend in background (silent)
+            savePDFReportAPI(report).then(accepted => {
+                if (accepted && accepted.job_id) {
+                    waitForBackendJob(accepted.job_id, 30000).catch(()=>{});
+                }
+            }).catch(err => {
+                console.warn('Background PDF sync skipped:', err.message);
+            });
+
             return true;
         } catch (err) {
-            console.error('Save PDF Report failed:', err);
+            console.error('Local PDF Report save failed:', err);
             return false;
         }
     }
 
-    async function addPDFSnapshot({ societyName, gateId, area, entries }) {
+    async function addPDFSnapshot({ societyName, gateId, area, entries, customId }) {
+        // Enforce one PDF per month by ID if it's a MONTHLY report
         const snapshot = {
-            id: 'pdf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            id: customId || ('pdf_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
             generatedAt: new Date().toISOString(),
             area: area || getActiveArea(),
             societyName: societyName || 'N/A',
@@ -3912,9 +3997,19 @@ document.addEventListener('DOMContentLoaded', () => {
             totalEntries: entries.length,
             entries: entries
         };
-        await savePDFReportToAPI(snapshot);
+
+        // Add the new snapshot and let the save logic handle deduplication
+        localPDFHistory.unshift(snapshot);
+        
+        saveLocalPDFHistory();
+        renderQuickAccessResults();
+        
+        // Sync to backend (silent)
+        savePDFReportAPI(snapshot).catch(()=>{});
+        
         return snapshot;
     }
+    window.addPDFSnapshot = addPDFSnapshot;
 
     async function syncAutoPDFSnapshot(area = getActiveArea()) {
         const selectedArea = sanitizeArea(area || getActiveArea());

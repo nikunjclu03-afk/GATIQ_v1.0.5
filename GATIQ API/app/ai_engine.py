@@ -8,6 +8,7 @@ import base64
 from app.vision.direction_module import DirectionModule
 from app.vision.ocr_module import OCRModule
 from app.vision.vehicle_module import VehicleModule
+from app.vision.sr_module import SuperResolutionModule
 from datetime import datetime
 
 
@@ -51,6 +52,10 @@ class GatiqLocalAI:
         print("Loading RapidOCR (PaddleOCR ONNX) engine...")
         self.ocr = RapidOCR()
         
+        # 4. AI Super-Resolution (Lightweight ONNX)
+        sr_model_path = os.path.join(self.base_dir, "sr_model.onnx")
+        self.sr_engine = SuperResolutionModule(sr_model_path)
+        
         # Debug folder setup
         self.debug_dir = os.getenv("GATIQ_DEBUG_DIR", os.path.join(self.base_dir, "debug_scans"))
         if not os.path.exists(self.debug_dir):
@@ -93,6 +98,13 @@ class GatiqLocalAI:
         v5 = cv2.adaptiveThreshold(v5_denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                    cv2.THRESH_BINARY, 11, 2)
         variants.append(("adaptive_thresh", v5))
+
+        # Variant 6: AI Super-Resolution (The "Super Recognize" mode)
+        # We run the AI SR model then grayscale it for stable OCR
+        if self.sr_engine.session:
+            v6_ai = self.sr_engine.upscale(crop)
+            v6_gray = cv2.cvtColor(v6_ai, cv2.COLOR_BGR2GRAY)
+            variants.append(("ai_super_res", v6_gray))
         
         return variants
 
